@@ -145,13 +145,14 @@
             <div id="admin-controls" class="mt-6 hidden">
                 <h2 class="text-lg font-semibold text-center mb-2 text-gray-600">관리자 메뉴</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button id="manage-users-btn" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">사용자 관리</button>
                     <button id="manage-students-btn" class="bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded">학생 개별 관리</button>
                     <button id="bulk-upload-btn" class="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded">엑셀로 일괄 등록</button>
                     <button id="report-btn" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">주간/월별 현황</button>
                     <button id="manage-all-data-btn" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded">전체 상황 관리</button>
                     <button id="manage-codes-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">가입 코드 관리</button>
                     <button id="edit-title-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">페이지 제목 수정</button>
-                    <button id="year-end-btn" class="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-4 rounded col-span-2">새 학년도 준비 (진급/졸업)</button>
+                    <button id="year-end-btn" class="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-4 rounded">새 학년도 준비</button>
                 </div>
             </div>
         </div>
@@ -179,10 +180,12 @@
     <div id="prompt-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 id="prompt-modal-title" class="text-xl font-bold mb-4"></h2><p id="prompt-modal-message" class="text-sm text-gray-600 mb-4"></p><input type="text" id="prompt-modal-input" class="w-full p-2 border rounded"><div class="mt-6 flex justify-end gap-4"><button id="prompt-modal-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button><button id="prompt-modal-ok-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">확인</button></div></div></div>
     <div id="report-modal" class="modal-backdrop hidden"><div class="modal-content"><div class="flex justify-between items-center"><h2 id="report-title" class="text-2xl font-bold text-gray-800"></h2><button id="report-export-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">엑셀로 내보내기</button></div><div id="report-content" class="mt-4 max-h-96 overflow-y-auto"></div><button id="report-close-btn" class="mt-6 w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">닫기</button></div></div>
     <div id="all-data-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 class="text-2xl font-bold mb-4 text-gray-800">전체 상황 관리</h2><div class="space-y-4"><p class="text-sm text-gray-600">현재까지 기록된 모든 위반 사항을 엑셀 파일로 내보냅니다.</p><button id="export-all-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full">전체 기록 내보내기</button><div class="border-t my-4"></div><p class="text-sm text-red-600">주의: 아래 버튼은 지난달의 모든 위반 기록을 영구적으로 삭제합니다. 월별 통계 작업이 끝난 후 실행하세요.</p><button id="delete-last-month-btn" class="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-4 rounded w-full">지난달 기록 전체 삭제</button></div><button onclick="document.getElementById('all-data-modal').classList.add('hidden')" class="mt-6 w-full bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">닫기</button></div></div>
+    <div id="user-management-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 class="text-2xl font-bold mb-4 text-gray-800">사용자 관리</h2><div id="user-list-content" class="max-h-96 overflow-y-auto"></div><button onclick="document.getElementById('user-management-modal').classList.add('hidden')" class="mt-6 w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">닫기</button></div></div>
+    <div id="force-password-reset-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 class="text-2xl font-bold mb-4 text-gray-800">새 비밀번호 설정</h2><p class="text-sm text-gray-600 mb-4">보안을 위해 새로운 비밀번호를 설정해야 합니다.</p><div class="mb-4"><label for="new-password" class="block text-gray-700 text-sm font-bold mb-2">새 비밀번호</label><input type="password" id="new-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" placeholder="6자리 이상"></div><button id="update-password-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full flex items-center justify-center"><span class="btn-text">비밀번호 변경</span><div class="loader hidden ml-2"></div></button></div></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, addDoc, collection, query, where, getDocs, onSnapshot, deleteDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- 기본 설정 ---
@@ -255,6 +258,11 @@
                                 const userData = userDoc.data();
                                 currentUserRole = userData.role;
                                 currentUserName = userData.name;
+
+                                if (userData.passwordResetRequired) {
+                                    document.getElementById('force-password-reset-modal').classList.remove('hidden');
+                                    return;
+                                }
                             }
 
                             if (user.uid === ADMIN_UID && currentUserRole !== 'admin') {
@@ -801,8 +809,6 @@
 
             // 보고서 기능
             document.getElementById('report-btn').addEventListener('click', () => {
-                // 이 버튼은 향후 주간/월별 선택 모달을 띄울 수 있습니다.
-                // 지금은 월별 현황을 바로 보여줍니다.
                 currentAction = 'viewStats';
                 classSelectorTitle.textContent = '월별 현황을 볼 학급 선택';
                 createClassSelectors('class-selector-container');
