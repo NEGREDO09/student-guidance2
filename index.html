@@ -1,1182 +1,882 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>학생 생활 지도 기록 시스템</title>
-
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 엑셀 내보내기 라이브러리 -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
-  <style>
-    body { font-family: 'Noto Sans KR', sans-serif; }
-    .modal-backdrop {
-      position: fixed; inset: 0; background: rgba(0,0,0,.5);
-      display:flex; justify-content:center; align-items:center; z-index:1000;
-    }
-    #alert-confirm-modal, #year-end-modal, #prompt-modal { z-index: 1001; }
-    .modal-content {
-      background:white; padding:1.5rem; border-radius:.5rem;
-      width:95%; max-width:600px; box-shadow:0 4px 6px rgba(0,0,0,.1);
-      transition: all .3s ease;
-    }
-    .modal-content.danger{ background:#fef2f2; border:2px solid #ef4444; }
-    .hidden{ display:none; }
-    .break-keep{ word-break: keep-all; }
-    .loader{
-      border:4px solid #f3f3f3; border-top:4px solid #3498db; border-radius:50%;
-      width:24px; height:24px; animation:spin 1s linear infinite;
-    }
-    @keyframes spin{ 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>학생 생활 지도 기록 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 엑셀 내보내기 라이브러리 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <!-- EmailJS 라이브러리 추가 -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #alert-confirm-modal, #year-end-modal, #prompt-modal { z-index: 1001; }
+        .modal-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            width: 95%;
+            max-width: 600px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .modal-content.danger {
+            background-color: #fef2f2;
+            border: 2px solid #ef4444;
+        }
+        .hidden { display: none; }
+        .break-keep { word-break: keep-all; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
 
-  <div id="app-container" class="min-h-screen flex flex-col items-center justify-center p-4 hidden">
-
-    <!-- 로그인 -->
-    <div id="login-section" class="w-full max-w-md bg-white p-8 rounded-lg shadow-lg">
-      <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">학생 생활 지도 시스템</h1>
-      <div class="mb-4">
-        <label for="login-name" class="block text-gray-700 text-sm font-bold mb-2">이름 (아이디)</label>
-        <input id="login-name" type="text" class="shadow border rounded w-full py-2 px-3 text-gray-700 focus:outline-none" placeholder="가입하신 이름을 입력하세요"/>
-      </div>
-      <div class="mb-6">
-        <label for="password" class="block text-gray-700 text-sm font-bold mb-2">비밀번호</label>
-        <input id="password" type="password" class="shadow border rounded w-full py-2 px-3 text-gray-700 focus:outline-none" placeholder="******************"/>
-      </div>
-      <button id="login-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full flex items-center justify-center">
-        <span class="btn-text">로그인</span><div class="loader hidden ml-2"></div>
-      </button>
-      <p id="login-error" class="text-red-500 text-xs italic mt-4 text-center"></p>
-
-      <div class="text-center mt-4">
-        <a href="#" id="show-register-link" class="font-bold text-sm text-blue-500 hover:text-blue-800">계정이 없으신가요? 회원가입</a>
-      </div>
-    </div>
-
-    <!-- 회원가입 -->
-    <div id="register-section" class="w-full max-w-md bg-white p-8 rounded-lg shadow-lg hidden">
-      <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">회원가입</h1>
-      <div class="mb-4">
-        <label for="register-name" class="block text-gray-700 text-sm font-bold mb-2">이름 (아이디로 사용)</label>
-        <input id="register-name" type="text" class="shadow border rounded w-full py-2 px-3 text-gray-700" placeholder="홍길동"/>
-      </div>
-      <div class="mb-4">
-        <label for="register-password" class="block text-gray-700 text-sm font-bold mb-2">비밀번호</label>
-        <input id="register-password" type="password" class="shadow border rounded w-full py-2 px-3 text-gray-700" placeholder="6자리 이상"/>
-      </div>
-      <div class="mb-6">
-        <label for="register-code" class="block text-gray-700 text-sm font-bold mb-2">가입 코드</label>
-        <input id="register-code" type="text" class="shadow border rounded w-full py-2 px-3 text-gray-700" placeholder="관리자에게 받은 코드를 입력하세요"/>
-      </div>
-      <button id="register-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full flex items-center justify-center">
-        <span class="btn-text">가입하기</span><div class="loader hidden ml-2"></div>
-      </button>
-
-      <div class="text-center mt-4">
-        <a href="#" id="show-login-link" class="font-bold text-sm text-blue-500 hover:text-blue-800">로그인 화면으로 돌아가기</a>
-      </div>
-    </div>
-
-    <!-- 메인 -->
-    <div id="main-app-section" class="w-full max-w-md hidden">
-      <div class="bg-white p-6 md:p-8 rounded-lg shadow-lg">
-
-        <div class="flex justify-between items-center mb-6">
-          <h1 id="main-title" class="text-xl md:text-2xl font-bold text-gray-800 break-keep"></h1>
-          <button id="logout-btn" class="bg-gray-500 hover:bg-gray-700 text-white text-sm font-bold py-1 px-3 rounded">로그아웃</button>
+    <div id="app-container" class="min-h-screen flex flex-col items-center justify-center p-4 hidden">
+        
+        <!-- 로그인 화면 -->
+        <div id="login-section" class="w-full max-w-md bg-white p-8 rounded-lg shadow-lg">
+            <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">학생 생활 지도 시스템</h1>
+            <div class="mb-4">
+                <label for="login-name" class="block text-gray-700 text-sm font-bold mb-2">이름 (아이디)</label>
+                <input type="text" id="login-name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="가입하신 이름을 입력하세요">
+            </div>
+            <div class="mb-6">
+                <label for="password" class="block text-gray-700 text-sm font-bold mb-2">비밀번호</label>
+                <input type="password" id="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" placeholder="******************">
+            </div>
+            <button id="login-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full flex items-center justify-center">
+                <span class="btn-text">로그인</span>
+                <div class="loader hidden ml-2"></div>
+            </button>
+            <p id="login-error" class="text-red-500 text-xs italic mt-4 text-center"></p>
+            <div class="text-center mt-4">
+                <a href="#" id="show-register-link" class="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800">
+                    계정이 없으신가요? 회원가입
+                </a>
+            </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label for="violation-date" class="block text-gray-700 text-sm font-bold mb-2">날짜</label>
-            <input id="violation-date" type="date" class="shadow border rounded w-full py-2 px-3 text-gray-700 focus:outline-none"/>
-          </div>
-          <div>
-            <label for="student-id" class="block text-gray-700 text-sm font-bold mb-2">학번 (예: 1101)</label>
-            <input id="student-id" type="text" class="shadow border rounded w-full py-2 px-3 text-gray-700 focus:outline-none" placeholder="학년반번호"/>
-          </div>
+        <!-- 회원가입 화면 -->
+        <div id="register-section" class="w-full max-w-md bg-white p-8 rounded-lg shadow-lg hidden">
+            <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">회원가입</h1>
+            <div class="mb-4">
+                <label for="register-name" class="block text-gray-700 text-sm font-bold mb-2">이름 (아이디로 사용)</label>
+                <input type="text" id="register-name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" placeholder="홍길동">
+            </div>
+            <div class="mb-4">
+                <label for="register-password" class="block text-gray-700 text-sm font-bold mb-2">비밀번호</label>
+                <input type="password" id="register-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" placeholder="6자리 이상">
+            </div>
+            <div class="mb-6">
+                <label for="register-code" class="block text-gray-700 text-sm font-bold mb-2">가입 코드</label>
+                <input type="text" id="register-code" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" placeholder="관리자에게 받은 코드를 입력하세요">
+            </div>
+            <button id="register-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full flex items-center justify-center">
+                <span class="btn-text">가입하기</span>
+                <div class="loader hidden ml-2"></div>
+            </button>
+            <div class="text-center mt-4">
+                <a href="#" id="show-login-link" class="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800">
+                    로그인 화면으로 돌아가기
+                </a>
+            </div>
         </div>
-        <div class="mb-4">
-          <label for="student-name" class="block text-gray-700 text-sm font-bold mb-2">이름</label>
-          <input id="student-name" type="text" class="shadow border rounded w-full py-2 px-3 text-gray-700 focus:outline-none" placeholder="학생 이름"/>
+
+        <!-- 메인 앱 화면 -->
+        <div id="main-app-section" class="w-full max-w-md hidden">
+            <div class="bg-white p-6 md:p-8 rounded-lg shadow-lg">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 id="main-title" class="text-xl md:text-2xl font-bold text-gray-800 break-keep"></h1>
+                    <button id="logout-btn" class="bg-gray-500 hover:bg-gray-700 text-white text-sm font-bold py-1 px-3 rounded">로그아웃</button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="violation-date" class="block text-gray-700 text-sm font-bold mb-2">날짜</label>
+                        <input type="date" id="violation-date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    </div>
+                    <div>
+                        <label for="student-id" class="block text-gray-700 text-sm font-bold mb-2">학번 (예: 1101)</label>
+                        <input type="text" id="student-id" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="학년반번호">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="student-name" class="block text-gray-700 text-sm font-bold mb-2">이름</label>
+                    <input type="text" id="student-name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="학생 이름">
+                </div>
+                <div class="mb-6">
+                    <label for="violation-details" class="block text-gray-700 text-sm font-bold mb-2">위반 내역</label>
+                    <input type="text" id="violation-details" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="예: 사복 착용, 지시 불이행">
+                </div>
+                <button id="submit-btn" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded focus:outline-none focus:shadow-outline w-full flex items-center justify-center">
+                    <span class="btn-text">위반 사항 제출</span>
+                    <div class="loader hidden ml-2"></div>
+                </button>
+            </div>
+            
+            <div id="teacher-menu" class="mt-6 bg-white p-4 rounded-lg shadow-lg hidden">
+                 <h2 class="text-lg font-semibold text-center mb-3 text-gray-600">조회 메뉴</h2>
+                 <button id="view-by-class-btn" class="bg-cyan-500 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded w-full">반별 위반 조회</button>
+            </div>
+
+            <!-- 관리자 기능 버튼 -->
+            <div id="admin-controls" class="mt-6 hidden">
+                <h2 class="text-lg font-semibold text-center mb-2 text-gray-600">관리자 메뉴</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button id="manage-users-btn" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">사용자 관리</button>
+                    <button id="manage-students-btn" class="bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded">학생 개별 관리</button>
+                    <button id="bulk-upload-btn" class="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded">엑셀로 일괄 등록</button>
+                    <button id="report-btn" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">주간/월별 현황</button>
+                    <button id="manage-all-data-btn" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded">전체 상황 관리</button>
+                    <button id="manage-codes-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">가입 코드 관리</button>
+                    <button id="edit-title-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">페이지 제목 수정</button>
+                    <button id="year-end-btn" class="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-4 rounded">새 학년도 준비</button>
+                </div>
+            </div>
         </div>
-        <div class="mb-6">
-          <label for="violation-details" class="block text-gray-700 text-sm font-bold mb-2">위반 내역</label>
-          <input id="violation-details" type="text" class="shadow border rounded w-full py-2 px-3 text-gray-700 focus:outline-none" placeholder="예: 사복 착용, 지시 불이행"/>
+    </div>
+    
+    <div id="loading-screen" class="fixed top-0 left-0 w-full h-full flex flex-col items-center justify-center bg-gray-100 z-2000">
+        <div class="w-full max-w-xs">
+            <p id="loading-status" class="mb-2 text-center text-gray-600">시스템을 불러오는 중...</p>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
         </div>
-
-        <button id="submit-btn" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded w-full flex items-center justify-center">
-          <span class="btn-text">위반 사항 제출</span><div class="loader hidden ml-2"></div>
-        </button>
-      </div>
-
-      <!-- 교사/관리자 조회 -->
-      <div id="teacher-menu" class="mt-6 bg-white p-4 rounded-lg shadow-lg hidden">
-        <h2 class="text-lg font-semibold text-center mb-3 text-gray-600">조회 메뉴</h2>
-        <button id="view-by-class-btn" class="bg-cyan-500 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded w-full">반별 위반 조회</button>
-      </div>
-
-      <!-- 관리자 기능 -->
-      <div id="admin-controls" class="mt-6 hidden">
-        <h2 class="text-lg font-semibold text-center mb-2 text-gray-600">관리자 메뉴</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button id="manage-students-btn" class="bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded">학생 개별 관리</button>
-          <button id="bulk-upload-btn" class="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded">엑셀로 일괄 등록</button>
-          <!-- 항상 활성 (이전 코드의 조건부 비활성 제거) -->
-          <button id="show-stats-btn" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded" title="이번 달 통계 보기">월별 통계 보기</button>
-          <button id="manage-codes-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">가입 코드 관리</button>
-          <button id="edit-title-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">페이지 제목 수정</button>
-          <button id="year-end-btn" class="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-4 rounded">새 학년도 준비</button>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <!-- 로딩 -->
-  <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-gray-100">
-    <div class="w-full max-w-xs">
-      <p id="loading-status" class="mb-2 text-center text-gray-600">시스템을 불러오는 중...</p>
-      <div class="w-full bg-gray-200 rounded-full h-2.5">
-        <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width:0%"></div>
-      </div>
-    </div>
-  </div>
+    <!-- 모달들 -->
+    <div id="result-modal" class="modal-backdrop hidden"><div class="modal-content" id="result-modal-content-box"><h2 id="result-modal-title" class="text-2xl font-bold mb-4 text-gray-800">기록 완료</h2><div id="result-content" class="text-gray-700 space-y-2"></div><button id="result-modal-ok-btn" class="mt-6 w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">확인</button></div></div>
+    <div id="alert-confirm-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 id="ac-modal-title" class="text-xl font-bold mb-4 text-gray-800">알림</h2><p id="ac-modal-message" class="text-gray-700"></p><div id="ac-modal-buttons" class="mt-6 flex justify-end gap-4"><button id="ac-modal-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button><button id="ac-modal-ok-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">확인</button></div></div></div>
+    <div id="class-selector-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 id="class-selector-title" class="text-2xl font-bold mb-4 text-gray-800">조회할 학급 선택</h2><div id="class-selector-container" class="space-y-4"></div><div class="mt-6 flex justify-end gap-4"><button id="class-selector-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button><button id="class-selector-confirm-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">조회</button></div></div></div>
+    <div id="student-list-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 class="text-2xl font-bold mb-4 text-gray-800">학생 명렬 관리</h2><div id="student-list-selector" class="mb-4"></div><div class="mb-4 bg-gray-100 p-3 rounded-md"><h3 class="font-semibold mb-2">신규 학생 추가 (현재 선택된 학급)</h3><div class="flex gap-2"><input type="text" id="new-student-id-suffix" placeholder="번호 (예: 01)" class="w-1/3 p-2 border rounded"><input type="text" id="new-student-name" placeholder="이름" class="w-2/3 p-2 border rounded"><button id="add-student-btn" class="bg-blue-500 text-white px-3 rounded hover:bg-blue-600 flex items-center justify-center"><span class="btn-text">추가</span><div class="loader hidden ml-2"></div></button></div></div><div id="student-list-content" class="max-h-64 overflow-y-auto"></div><button onclick="document.getElementById('student-list-modal').classList.add('hidden')" class="mt-6 w-full bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded">닫기</button></div></div>
+    <div id="class-log-modal" class="modal-backdrop hidden"><div class="modal-content"><div class="flex justify-between items-center"><h2 id="class-log-title" class="text-2xl font-bold text-gray-800"></h2><button id="class-log-export-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">엑셀로 내보내기</button></div><div id="class-log-content" class="mt-4 max-h-96 overflow-y-auto"></div><button id="class-log-close-btn" class="mt-6 w-full bg-cyan-500 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded">닫기</button></div></div>
+    <div id="edit-violation-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 class="text-2xl font-bold mb-4 text-gray-800">위반 기록 수정</h2><input type="hidden" id="edit-doc-id"><div class="space-y-4"><div><label class="block text-gray-700 text-sm font-bold mb-2">날짜</label><input type="date" id="edit-violation-date" class="w-full p-2 border rounded"></div><div><label class="block text-gray-700 text-sm font-bold mb-2">위반 내역</label><input type="text" id="edit-violation-details" class="w-full p-2 border rounded"></div></div><div class="mt-6 flex justify-end gap-4"><button onclick="document.getElementById('edit-violation-modal').classList.add('hidden')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button><button id="save-violation-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">저장</button></div></div></div>
+    <div id="bulk-upload-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 class="text-2xl font-bold mb-4 text-gray-800">엑셀로 명렬 일괄 등록</h2><p class="text-sm text-gray-600 mb-2">엑셀에서 '학번', '이름' 두 개 열을 복사하여 아래 칸에 그대로 붙여넣으세요.</p><p class="text-xs text-gray-500 mb-4">(예시: 1101  홍길동)</p><textarea id="bulk-data-input" rows="10" class="w-full p-2 border rounded" placeholder="여기에 붙여넣기..."></textarea><div class="mt-6 flex justify-end gap-4"><button onclick="document.getElementById('bulk-upload-modal').classList.add('hidden')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button><button id="process-bulk-upload-btn" class="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center"><span class="btn-text">등록하기</span><div class="loader hidden ml-2"></div></button></div></div></div>
+    <div id="year-end-modal" class="modal-backdrop hidden"><div class="modal-content danger"><h2 class="text-2xl font-bold mb-4 text-red-700">🚨 새 학년도 준비 (진급/졸업) 🚨</h2><div class="text-gray-700 space-y-2"><p>이 작업은 되돌릴 수 없는 매우 중요한 작업입니다. 신중하게 진행해주세요.</p><p class="font-bold mt-4">아래 작업이 영구적으로 수행됩니다:</p><ul class="list-disc list-inside space-y-1 pl-2"><li>모든 3학년 학생 명렬과 위반 기록이 <strong class="text-red-600">영구적으로 삭제</strong>됩니다.</li><li>모든 2학년은 3학년으로, 1학년은 2학년으로 <strong class="text-red-600">진급</strong>됩니다.</li><li>진급된 학생들의 모든 위반 기록 학번도 자동으로 변경됩니다.</li></ul></div><div class="mt-6"><label class="flex items-center"><input type="checkbox" id="year-end-confirm-checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500"><span class="ml-2 text-gray-800">위 내용을 모두 이해했으며, 학년 진급 처리를 진행합니다.</span></label></div><div class="mt-6 flex justify-end gap-4"><button onclick="document.getElementById('year-end-modal').classList.add('hidden')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button><button id="process-year-end-btn" class="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-4 rounded flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled><span class="btn-text">진급 처리 시작</span><div class="loader hidden ml-2"></div></button></div></div></div>
+    <div id="code-manager-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 class="text-2xl font-bold mb-4 text-gray-800">가입 코드 관리</h2><div class="space-y-4"><div><label for="teacher-code-input" class="block text-gray-700 text-sm font-bold mb-2">교사 가입 코드</label><input type="text" id="teacher-code-input" class="w-full p-2 border rounded"></div><div><label for="prefect-code-input" class="block text-gray-700 text-sm font-bold mb-2">선도부 가입 코드</label><input type="text" id="prefect-code-input" class="w-full p-2 border rounded"></div></div><div class="mt-6 flex justify-end gap-4"><button onclick="document.getElementById('code-manager-modal').classList.add('hidden')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button><button id="save-codes-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center"><span class="btn-text">저장</span><div class="loader hidden ml-2"></div></button></div></div></div>
+    <div id="prompt-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 id="prompt-modal-title" class="text-xl font-bold mb-4"></h2><p id="prompt-modal-message" class="text-sm text-gray-600 mb-4"></p><input type="text" id="prompt-modal-input" class="w-full p-2 border rounded"><div class="mt-6 flex justify-end gap-4"><button id="prompt-modal-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button><button id="prompt-modal-ok-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">확인</button></div></div></div>
+    <div id="report-modal" class="modal-backdrop hidden"><div class="modal-content"><div class="flex justify-between items-center"><h2 id="report-title" class="text-2xl font-bold text-gray-800"></h2><button id="report-export-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">엑셀로 내보내기</button></div><div id="report-content" class="mt-4 max-h-96 overflow-y-auto"></div><button id="report-close-btn" class="mt-6 w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">닫기</button></div></div>
+    <div id="all-data-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 class="text-2xl font-bold mb-4 text-gray-800">전체 상황 관리</h2><div class="space-y-4"><p class="text-sm text-gray-600">현재까지 기록된 모든 위반 사항을 엑셀 파일로 내보냅니다.</p><button id="export-all-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full">전체 기록 내보내기</button><div class="border-t my-4"></div><p class="text-sm text-red-600">주의: 아래 버튼은 지난달의 모든 위반 기록을 영구적으로 삭제합니다. 월별 통계 작업이 끝난 후 실행하세요.</p><button id="delete-last-month-btn" class="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-4 rounded w-full">지난달 기록 전체 삭제</button></div><button onclick="document.getElementById('all-data-modal').classList.add('hidden')" class="mt-6 w-full bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">닫기</button></div></div>
+    <div id="user-management-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 class="text-2xl font-bold mb-4 text-gray-800">사용자 관리</h2><div id="user-list-content" class="max-h-96 overflow-y-auto"></div><button onclick="document.getElementById('user-management-modal').classList.add('hidden')" class="mt-6 w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">닫기</button></div></div>
+    <div id="force-password-reset-modal" class="modal-backdrop hidden"><div class="modal-content"><h2 class="text-2xl font-bold mb-4 text-gray-800">새 비밀번호 설정</h2><p class="text-sm text-gray-600 mb-4">보안을 위해 새로운 비밀번호를 설정해야 합니다.</p><div class="mb-4"><label for="new-password" class="block text-gray-700 text-sm font-bold mb-2">새 비밀번호</label><input type="password" id="new-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" placeholder="6자리 이상"></div><button id="update-password-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full flex items-center justify-center"><span class="btn-text">비밀번호 변경</span><div class="loader hidden ml-2"></div></button></div></div>
 
-  <!-- 모달들 -->
-  <div id="result-modal" class="modal-backdrop hidden">
-    <div class="modal-content" id="result-modal-content-box">
-      <h2 id="result-modal-title" class="text-2xl font-bold mb-4 text-gray-800">기록 완료</h2>
-      <div id="result-content" class="text-gray-700 space-y-2"></div>
-      <button id="result-modal-ok-btn" class="mt-6 w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">확인</button>
-    </div>
-  </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, collection, query, where, getDocs, onSnapshot, deleteDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-  <div id="alert-confirm-modal" class="modal-backdrop hidden">
-    <div class="modal-content">
-      <h2 id="ac-modal-title" class="text-xl font-bold mb-4 text-gray-800">알림</h2>
-      <p id="ac-modal-message" class="text-gray-700"></p>
-      <div id="ac-modal-buttons" class="mt-6 flex justify-end gap-4">
-        <button id="ac-modal-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button>
-        <button id="ac-modal-ok-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">확인</button>
-      </div>
-    </div>
-  </div>
+        // --- 기본 설정 ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC3sjU7cZe6bNKCNng20IFuKjImpQG4jAw",
+            authDomain: "student-violation-tracker-2.firebaseapp.com",
+            projectId: "student-violation-tracker-2",
+            storageBucket: "student-violation-tracker-2.firebasestorage.app",
+            messagingSenderId: "761821338774",
+            appId: "1:761821338774:web:0c2dfb525af23ca4a136b7",
+            measurementId: "G-BL4NTX7LRQ"
+        };
+        
+        // --- DOMContentLoaded 이벤트 리스너로 전체 스크립트 실행 보장 ---
+        window.addEventListener('load', () => {
+            
+            // --- 전역 변수 및 상수 ---
+            let auth, db, currentUserRole, currentUserName;
+            const ADMIN_UID = "XRi2i7XcXSf6MLM3poTVX6Soorw1";
+            const schoolStructure = { '1': 3, '2': 4, '3': 4 };
 
-  <div id="class-selector-modal" class="modal-backdrop hidden">
-    <div class="modal-content">
-      <h2 id="class-selector-title" class="text-2xl font-bold mb-4 text-gray-800">조회할 학급 선택</h2>
-      <div id="class-selector-container" class="space-y-4"></div>
-      <div class="mt-6 flex justify-end gap-4">
-        <button id="class-selector-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button>
-        <button id="class-selector-confirm-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">조회</button>
-      </div>
-    </div>
-  </div>
+            // --- DOM 요소 ---
+            const appContainer = document.getElementById('app-container');
+            const loadingScreen = document.getElementById('loading-screen');
+            const loadingStatus = document.getElementById('loading-status');
+            const progressBar = document.getElementById('progress-bar');
+            
+            const loginSection = document.getElementById('login-section');
+            const registerSection = document.getElementById('register-section');
+            const mainAppSection = document.getElementById('main-app-section');
+            const adminControls = document.getElementById('admin-controls');
+            const teacherMenu = document.getElementById('teacher-menu');
+            const mainTitle = document.getElementById('main-title');
+            const violationDateInput = document.getElementById('violation-date');
+            
+            // --- 맞춤형 모달 함수 ---
+            const acModal = document.getElementById('alert-confirm-modal');
+            const acModalTitle = document.getElementById('ac-modal-title');
+            const acModalMessage = document.getElementById('ac-modal-message');
+            const acModalOkBtn = document.getElementById('ac-modal-ok-btn');
+            const acModalCancelBtn = document.getElementById('ac-modal-cancel-btn');
 
-  <div id="student-list-modal" class="modal-backdrop hidden">
-    <div class="modal-content">
-      <h2 class="text-2xl font-bold mb-4 text-gray-800">학생 명렬 관리</h2>
-      <div id="student-list-selector" class="mb-4"></div>
+            function showAlert(message, title = "알림") { acModalTitle.textContent = title; acModalMessage.textContent = message; acModalCancelBtn.classList.add('hidden'); acModalOkBtn.textContent = '확인'; acModal.classList.remove('hidden'); return new Promise(resolve => { acModalOkBtn.onclick = () => { acModal.classList.add('hidden'); resolve(true); }; }); }
+            function showConfirm(message, title = "확인") { acModalTitle.textContent = title; acModalMessage.textContent = message; acModalCancelBtn.classList.remove('hidden'); acModalOkBtn.textContent = '확인'; acModalCancelBtn.textContent = '취소'; acModal.classList.remove('hidden'); return new Promise(resolve => { acModalOkBtn.onclick = () => { acModal.classList.add('hidden'); resolve(true); }; acModalCancelBtn.onclick = () => { acModal.classList.add('hidden'); resolve(false); }; }); }
+            const promptModal = document.getElementById('prompt-modal');
+            function showPrompt(title, message, defaultValue = "") { document.getElementById('prompt-modal-title').textContent = title; document.getElementById('prompt-modal-message').textContent = message; const input = document.getElementById('prompt-modal-input'); input.value = defaultValue; promptModal.classList.remove('hidden'); input.focus(); return new Promise(resolve => { document.getElementById('prompt-modal-ok-btn').onclick = () => { promptModal.classList.add('hidden'); resolve(input.value); }; document.getElementById('prompt-modal-cancel-btn').onclick = () => { promptModal.classList.add('hidden'); resolve(null); }; }); }
 
-      <div class="mb-4 bg-gray-100 p-3 rounded-md">
-        <h3 class="font-semibold mb-2">신규 학생 추가 (현재 선택된 학급)</h3>
-        <div class="flex gap-2">
-          <input id="new-student-id-suffix" type="text" placeholder="번호 (예: 01)" class="w-1/3 p-2 border rounded"/>
-          <input id="new-student-name" type="text" placeholder="이름" class="w-2/3 p-2 border rounded"/>
-          <button id="add-student-btn" class="bg-blue-500 text-white px-3 rounded hover:bg-blue-600 flex items-center justify-center">
-            <span class="btn-text">추가</span><div class="loader hidden ml-2"></div>
-          </button>
-        </div>
-      </div>
+            // --- 헬퍼 함수 ---
+            function updateLoadingProgress(percentage, message) { progressBar.style.width = `${percentage}%`; loadingStatus.textContent = message; }
+            const setTodayDate = () => { violationDateInput.value = new Date().toISOString().split('T')[0]; };
+            const toggleLoading = (button, isLoading) => { const text = button.querySelector('.btn-text'); const loader = button.querySelector('.loader'); if (isLoading) { button.disabled = true; if(text) text.classList.add('hidden'); if(loader) loader.classList.remove('hidden'); } else { button.disabled = false; if(text) text.classList.remove('hidden'); if(loader) loader.classList.add('hidden'); } };
+            function createClassSelectors(containerId) { const container = document.getElementById(containerId); container.innerHTML = `<div class="flex gap-4"><div class="w-1/2"><label for="${containerId}-grade" class="block text-sm font-bold mb-2">학년</label><select id="${containerId}-grade" class="w-full p-2 border rounded">${Object.keys(schoolStructure).map(g => `<option value="${g}">${g}학년</option>`).join('')}</select></div><div class="w-1/2"><label for="${containerId}-class" class="block text-sm font-bold mb-2">반</label><select id="${containerId}-class" class="w-full p-2 border rounded"></select></div></div>`; const gradeSelect = document.getElementById(`${containerId}-grade`); const classSelect = document.getElementById(`${containerId}-class`); function updateClasses() { const grade = gradeSelect.value; const classCount = schoolStructure[grade]; classSelect.innerHTML = Array.from({ length: classCount }, (_, i) => i + 1).map(c => `<option value="${c}">${c}반</option>`).join(''); } gradeSelect.addEventListener('change', updateClasses); updateClasses(); }
+            const createDummyEmail = (name) => `${name.replace(/\s/g, '')}_${Date.now()}@school.id`;
+            
+            // --- 시스템 초기화 ---
+            async function main() {
+                try {
+                    updateLoadingProgress(25, 'Firebase 앱 초기화 중...');
+                    const app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+                    
+                    updateLoadingProgress(50, '인증 서비스 연결 중...');
+                    
+                    onAuthStateChanged(auth, async (user) => {
+                        updateLoadingProgress(75, '사용자 정보 확인 중...');
+                        if (user) {
+                            const userDoc = await getDoc(doc(db, "users", user.uid));
+                            if (userDoc.exists()) {
+                                const userData = userDoc.data();
+                                currentUserRole = userData.role;
+                                currentUserName = userData.name;
 
-      <div id="student-list-content" class="max-h-64 overflow-y-auto"></div>
-      <button onclick="document.getElementById('student-list-modal').classList.add('hidden')" class="mt-6 w-full bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded">닫기</button>
-    </div>
-  </div>
+                                if (userData.passwordResetRequired) {
+                                    document.getElementById('force-password-reset-modal').classList.remove('hidden');
+                                    return;
+                                }
+                            }
 
-  <div id="class-log-modal" class="modal-backdrop hidden">
-    <div class="modal-content">
-      <div class="flex justify-between items-center">
-        <h2 id="class-log-title" class="text-2xl font-bold text-gray-800"></h2>
-        <button id="class-log-export-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">엑셀로 내보내기</button>
-      </div>
-      <div id="class-log-content" class="mt-4 max-h-96 overflow-y-auto"></div>
-      <button id="class-log-close-btn" class="mt-6 w-full bg-cyan-500 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded">닫기</button>
-    </div>
-  </div>
+                            if (user.uid === ADMIN_UID && currentUserRole !== 'admin') {
+                                await setDoc(doc(db, "users", user.uid), { role: 'admin', name: '양준석' }, { merge: true });
+                                currentUserRole = 'admin';
+                            }
 
-  <div id="stats-modal" class="modal-backdrop hidden">
-    <div class="modal-content">
-      <div class="flex justify-between items-center">
-        <h2 id="stats-title" class="text-2xl font-bold text-gray-800"></h2>
-        <button id="stats-export-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">엑셀로 내보내기</button>
-      </div>
-      <div id="stats-content" class="mt-4 max-h-96 overflow-y-auto"></div>
-      <button id="stats-close-btn" class="mt-6 w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">닫기</button>
-    </div>
-  </div>
+                            loginSection.classList.add('hidden');
+                            registerSection.classList.add('hidden');
+                            mainAppSection.classList.remove('hidden');
+                            
+                            const isAdmin = currentUserRole === 'admin';
+                            const isTeacher = currentUserRole === 'teacher';
+                            
+                            adminControls.classList.toggle('hidden', !isAdmin);
+                            teacherMenu.classList.toggle('hidden', !(isAdmin || isTeacher));
 
-  <div id="edit-violation-modal" class="modal-backdrop hidden">
-    <div class="modal-content">
-      <h2 class="text-2xl font-bold mb-4 text-gray-800">위반 기록 수정</h2>
-      <input id="edit-doc-id" type="hidden"/>
-      <div class="space-y-4">
-        <div>
-          <label class="block text-gray-700 text-sm font-bold mb-2">날짜</label>
-          <input id="edit-violation-date" type="date" class="w-full p-2 border rounded"/>
-        </div>
-        <div>
-          <label class="block text-gray-700 text-sm font-bold mb-2">위반 내역</label>
-          <input id="edit-violation-details" type="text" class="w-full p-2 border rounded"/>
-        </div>
-      </div>
-      <div class="mt-6 flex justify-end gap-4">
-        <button onclick="document.getElementById('edit-violation-modal').classList.add('hidden')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button>
-        <button id="save-violation-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">저장</button>
-      </div>
-    </div>
-  </div>
+                            listenToTitle();
+                            setTodayDate();
+                            // updateStatsButtonState(); // 월별 통계 버튼 상시 활성화로 변경
+                        } else {
+                            currentUserRole = null;
+                            currentUserName = null;
+                            loginSection.classList.remove('hidden');
+                            registerSection.classList.add('hidden');
+                            mainAppSection.classList.add('hidden');
+                        }
+                        
+                        updateLoadingProgress(100, '로딩 완료!');
+                        setTimeout(() => {
+                            appContainer.classList.remove('hidden');
+                            loadingScreen.classList.add('hidden');
+                        }, 300);
+                    });
+                } catch (error) {
+                    loadingStatus.textContent = "시스템 초기화 오류 발생. 새로고침 해주세요.";
+                    console.error("Initialization Error:", error);
+                }
+            }
+            main();
 
-  <div id="bulk-upload-modal" class="modal-backdrop hidden">
-    <div class="modal-content">
-      <h2 class="text-2xl font-bold mb-4 text-gray-800">엑셀로 명렬 일괄 등록</h2>
-      <p class="text-sm text-gray-600 mb-2">엑셀에서 '학번', '이름' 두 개 열을 복사하여 아래 칸에 그대로 붙여넣으세요.</p>
-      <p class="text-xs text-gray-500 mb-4">(예시: 1101  홍길동)</p>
-      <textarea id="bulk-data-input" rows="10" class="w-full p-2 border rounded" placeholder="여기에 붙여넣기..."></textarea>
-      <div class="mt-6 flex justify-end gap-4">
-        <button onclick="document.getElementById('bulk-upload-modal').classList.add('hidden')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button>
-        <button id="process-bulk-upload-btn" class="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center">
-          <span class="btn-text">등록하기</span><div class="loader hidden ml-2"></div>
-        </button>
-      </div>
-    </div>
-  </div>
+            // --- 이벤트 리스너 바인딩 ---
+            document.getElementById('show-register-link').addEventListener('click', (e) => { e.preventDefault(); loginSection.classList.add('hidden'); registerSection.classList.remove('hidden'); });
+            document.getElementById('show-login-link').addEventListener('click', (e) => { e.preventDefault(); loginSection.classList.remove('hidden'); registerSection.classList.add('hidden'); });
 
-  <div id="year-end-modal" class="modal-backdrop hidden">
-    <div class="modal-content danger">
-      <h2 class="text-2xl font-bold mb-4 text-red-700">🚨 새 학년도 준비 (진급/졸업) 🚨</h2>
-      <div class="text-gray-700 space-y-2">
-        <p>이 작업은 되돌릴 수 없는 매우 중요한 작업입니다. 신중하게 진행해주세요.</p>
-        <p class="font-bold mt-4">아래 작업이 영구적으로 수행됩니다:</p>
-        <ul class="list-disc list-inside space-y-1 pl-2">
-          <li>모든 3학년 학생 명렬과 위반 기록이 <strong class="text-red-600">영구적으로 삭제</strong>됩니다.</li>
-          <li>모든 2학년은 3학년으로, 1학년은 2학년으로 <strong class="text-red-600">진급</strong>됩니다.</li>
-          <li>진급된 학생들의 모든 위반 기록 학번도 자동으로 변경됩니다.</li>
-        </ul>
-      </div>
-      <div class="mt-6">
-        <label class="flex items-center">
-          <input id="year-end-confirm-checkbox" type="checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500"/>
-          <span class="ml-2 text-gray-800">위 내용을 모두 이해했으며, 학년 진급 처리를 진행합니다.</span>
-        </label>
-      </div>
-      <div class="mt-6 flex justify-end gap-4">
-        <button onclick="document.getElementById('year-end-modal').classList.add('hidden')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button>
-        <button id="process-year-end-btn" class="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-4 rounded flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-          <span class="btn-text">진급 처리 시작</span><div class="loader hidden ml-2"></div>
-        </button>
-      </div>
-    </div>
-  </div>
+            document.getElementById('login-btn').addEventListener('click', async (e) => {
+                const button = e.currentTarget;
+                toggleLoading(button, true);
+                const name = document.getElementById('login-name').value.trim();
+                const password = document.getElementById('password').value;
+                
+                if (!name || !password) {
+                    toggleLoading(button, false);
+                    return showAlert("이름과 비밀번호를 모두 입력해주세요.");
+                }
 
-  <div id="code-manager-modal" class="modal-backdrop hidden">
-    <div class="modal-content">
-      <h2 class="text-2xl font-bold mb-4 text-gray-800">가입 코드 관리</h2>
-      <div class="space-y-4">
-        <div>
-          <label for="teacher-code-input" class="block text-gray-700 text-sm font-bold mb-2">교사 가입 코드</label>
-          <input id="teacher-code-input" type="text" class="w-full p-2 border rounded"/>
-        </div>
-        <div>
-          <label for="prefect-code-input" class="block text-gray-700 text-sm font-bold mb-2">선도부 가입 코드</label>
-          <input id="prefect-code-input" type="text" class="w-full p-2 border rounded"/>
-        </div>
-      </div>
-      <div class="mt-6 flex justify-end gap-4">
-        <button onclick="document.getElementById('code-manager-modal').classList.add('hidden')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button>
-        <button id="save-codes-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center">
-          <span class="btn-text">저장</span><div class="loader hidden ml-2"></div>
-        </button>
-      </div>
-    </div>
-  </div>
+                try {
+                    const usersRef = collection(db, "users");
+                    const q = query(usersRef, where("name", "==", name));
+                    const querySnapshot = await getDocs(q);
 
-  <div id="prompt-modal" class="modal-backdrop hidden">
-    <div class="modal-content">
-      <h2 id="prompt-modal-title" class="text-xl font-bold mb-4"></h2>
-      <p id="prompt-modal-message" class="text-sm text-gray-600 mb-4"></p>
-      <input id="prompt-modal-input" type="text" class="w-full p-2 border rounded"/>
-      <div class="mt-6 flex justify-end gap-4">
-        <button id="prompt-modal-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">취소</button>
-        <button id="prompt-modal-ok-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">확인</button>
-      </div>
-    </div>
-  </div>
+                    if (querySnapshot.empty) { throw new Error("User not found"); }
+                    
+                    const userDoc = querySnapshot.docs[0].data();
+                    const email = userDoc.email;
 
-  <script type="module">
-    /* ---------------- Firebase SDK ---------------- */
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, addDoc, collection, query, where, getDocs, onSnapshot, deleteDoc, updateDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+                    await signInWithEmailAndPassword(auth, email, password);
+                } catch (error) {
+                    document.getElementById('login-error').textContent = "이름 또는 비밀번호가 잘못되었습니다.";
+                    console.error(error);
+                } finally {
+                    toggleLoading(button, false);
+                }
+            });
+            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-    /* ---------------- 환경설정 ---------------- */
-    const firebaseConfig = {
-      apiKey: "AIzaSyC3sjU7cZe6bNKCNng20IFuKjImpQG4jAw",
-      authDomain: "student-violation-tracker-2.firebaseapp.com",
-      projectId: "student-violation-tracker-2",
-      storageBucket: "student-violation-tracker-2.firebasestorage.app",
-      messagingSenderId: "761821338774",
-      appId: "1:761821338774:web:0c2dfb525af23ca4a136b7",
-      measurementId: "G-BL4NTX7LRQ"
-    };
+            document.getElementById('register-btn').addEventListener('click', async (e) => {
+                const button = e.currentTarget;
+                toggleLoading(button, true);
+                const name = document.getElementById('register-name').value.trim();
+                const password = document.getElementById('register-password').value;
+                const code = document.getElementById('register-code').value.trim();
 
-    /* ---------------- 공통 유틸 ---------------- */
-    // KST 오늘 날짜(YYYY-MM-DD)
-    const todayKST = () =>
-      new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date()); // en-CA → 2025-08-21 포맷
+                if (!name || !password || !code) {
+                    toggleLoading(button, false);
+                    return showAlert("모든 항목을 입력해주세요.");
+                }
 
-    // YYYY-MM-DD → KST Date 객체
-    const kstDateFromYMD = (ymd) => new Date(`${ymd}T00:00:00+09:00`);
+                try {
+                    const nameQuery = query(collection(db, "users"), where("name", "==", name));
+                    const nameSnapshot = await getDocs(nameQuery);
+                    if (!nameSnapshot.empty) {
+                        toggleLoading(button, false);
+                        return showAlert("이미 사용 중인 이름입니다. 다른 이름을 사용해주세요.");
+                    }
 
-    // Firestore Timestamp/Date → YYYY-MM-DD(KST)
-    const formatDateKST = (tsOrDate) => {
-      const d = tsOrDate?.toDate ? tsOrDate.toDate() : tsOrDate;
-      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(d);
-    };
+                    const codesDoc = await getDoc(doc(db, "config", "registrationCodes"));
+                    if (!codesDoc.exists()) {
+                        toggleLoading(button, false);
+                        return showAlert("가입 코드가 설정되지 않았습니다. 관리자에게 문의하세요.");
+                    }
+                    const codes = codesDoc.data();
+                    let role = null;
+                    if (code === codes.teacher) role = 'teacher';
+                    else if (code === codes.prefect) role = 'prefect';
 
-    const sanitizeExcel = (val) => {
-      if (typeof val !== 'string') return val;
-      return /^[=+\-@]/.test(val) ? `'${val}` : val;
-    };
+                    if (!role) {
+                        toggleLoading(button, false);
+                        return showAlert("가입 코드가 올바르지 않습니다.");
+                    }
+                    
+                    const dummyEmail = createDummyEmail(name);
+                    const userCredential = await createUserWithEmailAndPassword(auth, dummyEmail, password);
+                    await setDoc(doc(db, "users", userCredential.user.uid), { role: role, name: name, email: dummyEmail });
+                    await showAlert("회원가입이 완료되었습니다. 자동으로 로그인됩니다.");
+                } catch (error) {
+                    if (error.code === 'auth/email-already-in-use') {
+                        showAlert("내부 오류가 발생했습니다. 다른 이름으로 다시 시도해주세요.");
+                    } else if (error.code === 'auth/weak-password') {
+                        showAlert("비밀번호는 6자리 이상이어야 합니다.");
+                    } else {
+                        showAlert("회원가입 중 오류가 발생했습니다.");
+                    }
+                    console.error("가입 오류:", error);
+                } finally {
+                    toggleLoading(button, false);
+                }
+            });
 
-    const createDummyEmail = (name) => `${name.replace(/\s/g,'')}_${Date.now()}@school.id`;
-
-    const toggleLoading = (btn, on) => {
-      if (!btn) return;
-      const t = btn.querySelector('.btn-text');
-      const l = btn.querySelector('.loader');
-      btn.disabled = !!on;
-      if (t) t.classList.toggle('hidden', !!on);
-      if (l) l.classList.toggle('hidden', !on);
-    };
-
-    function showAlert(message, title="알림"){
-      acModalTitle.textContent = title;
-      acModalMessage.textContent = message;
-      acModalCancelBtn.classList.add('hidden');
-      acModalOkBtn.textContent = '확인';
-      acModal.classList.remove('hidden');
-      return new Promise(res => { acModalOkBtn.onclick = () => { acModal.classList.add('hidden'); res(true); }; });
-    }
-    function showConfirm(message, title="확인"){
-      acModalTitle.textContent = title;
-      acModalMessage.textContent = message;
-      acModalCancelBtn.classList.remove('hidden');
-      acModalOkBtn.textContent = '확인'; acModalCancelBtn.textContent='취소';
-      acModal.classList.remove('hidden');
-      return new Promise(res => {
-        acModalOkBtn.onclick = () => { acModal.classList.add('hidden'); res(true); };
-        acModalCancelBtn.onclick = () => { acModal.classList.add('hidden'); res(false); };
-      });
-    }
-    function showPrompt(title, message, def=""){
-      document.getElementById('prompt-modal-title').textContent = title;
-      document.getElementById('prompt-modal-message').textContent = message;
-      const input = document.getElementById('prompt-modal-input');
-      input.value = def;
-      promptModal.classList.remove('hidden');
-      input.focus();
-      return new Promise(res => {
-        document.getElementById('prompt-modal-ok-btn').onclick = () => { promptModal.classList.add('hidden'); res(input.value); };
-        document.getElementById('prompt-modal-cancel-btn').onclick = () => { promptModal.classList.add('hidden'); res(null); };
-      });
-    }
-
-    const schoolStructure = { '1': 3, '2': 4, '3': 4 };
-    function createClassSelectors(containerId){
-      const container = document.getElementById(containerId);
-      container.innerHTML = `
-        <div class="flex gap-4">
-          <div class="w-1/2">
-            <label for="${containerId}-grade" class="block text-sm font-bold mb-2">학년</label>
-            <select id="${containerId}-grade" class="w-full p-2 border rounded">
-              ${Object.keys(schoolStructure).map(g=>`<option value="${g}">${g}학년</option>`).join('')}
-            </select>
-          </div>
-          <div class="w-1/2">
-            <label for="${containerId}-class" class="block text-sm font-bold mb-2">반</label>
-            <select id="${containerId}-class" class="w-full p-2 border rounded"></select>
-          </div>
-        </div>`;
-      const gradeSelect = document.getElementById(`${containerId}-grade`);
-      const classSelect = document.getElementById(`${containerId}-class`);
-      function updateClasses(){
-        const grade = gradeSelect.value;
-        const count = schoolStructure[grade];
-        classSelect.innerHTML = Array.from({length:count}, (_,i)=>i+1).map(c=>`<option value="${c}">${c}반</option>`).join('');
-      }
-      gradeSelect.addEventListener('change', updateClasses);
-      updateClasses();
-    }
-
-    /* ---------------- 전역 상태/DOM ---------------- */
-    let auth, db, currentUserRole, currentUserName;
-    const ADMIN_UID = "XRi2i7XcXSf6MLM3poTVX6Soorw1";
-
-    const appContainer = document.getElementById('app-container');
-    const loadingScreen = document.getElementById('loading-screen');
-    const loadingStatus = document.getElementById('loading-status');
-    const progressBar = document.getElementById('progress-bar');
-
-    const loginSection = document.getElementById('login-section');
-    const registerSection = document.getElementById('register-section');
-    const mainAppSection = document.getElementById('main-app-section');
-    const adminControls = document.getElementById('admin-controls');
-    const teacherMenu = document.getElementById('teacher-menu');
-    const mainTitle = document.getElementById('main-title');
-    const violationDateInput = document.getElementById('violation-date');
-
-    // 모달 DOM
-    const acModal = document.getElementById('alert-confirm-modal');
-    const acModalTitle = document.getElementById('ac-modal-title');
-    const acModalMessage = document.getElementById('ac-modal-message');
-    const acModalOkBtn = document.getElementById('ac-modal-ok-btn');
-    const acModalCancelBtn = document.getElementById('ac-modal-cancel-btn');
-    const promptModal = document.getElementById('prompt-modal');
-
-    /* ---------------- 초기화 ---------------- */
-    function updateLoadingProgress(p, msg){ progressBar.style.width = `${p}%`; loadingStatus.textContent = msg; }
-
-    window.addEventListener('load', () => {
-      main().catch(err=>{
-        loadingStatus.textContent = "시스템 초기화 오류 발생. 새로고침 해주세요.";
-        console.error("Initialization Error:", err);
-      });
-    });
-
-    async function main(){
-      updateLoadingProgress(25, 'Firebase 앱 초기화 중...');
-      const app = initializeApp(firebaseConfig);
-      auth = getAuth(app);
-      db = getFirestore(app);
-
-      updateLoadingProgress(50, '인증 서비스 연결 중...');
-
-      onAuthStateChanged(auth, async (user) => {
-        updateLoadingProgress(75, '사용자 정보 확인 중...');
-        try{
-          if (user){
-            // 사용자 역할/이름 로드
-            const userDocSnap = await getDoc(doc(db, "users", user.uid));
-            if (userDocSnap.exists()){
-              const data = userDocSnap.data();
-              currentUserRole = data.role;
-              currentUserName = data.name;
+            function listenToTitle() {
+                onSnapshot(doc(db, "config", "mainSettings"), (docSnap) => {
+                    mainTitle.textContent = docSnap.exists() ? docSnap.data().title : "2025학년도 1학기 학생지도 사항";
+                });
             }
 
-            // 고정 관리자 UID 강제 보정
-            if (user.uid === ADMIN_UID && currentUserRole !== 'admin') {
-              await setDoc(doc(db, "users", user.uid), { role: 'admin', name: currentUserName || '관리자' }, { merge: true });
-              currentUserRole = 'admin';
+            document.getElementById('submit-btn').addEventListener('click', async (e) => {
+                const button = e.currentTarget;
+                toggleLoading(button, true);
+                const studentId = document.getElementById('student-id').value.trim();
+                const studentName = document.getElementById('student-name').value.trim();
+                const details = document.getElementById('violation-details').value.trim();
+                const date = violationDateInput.value;
+
+                if (!date || !studentId || !studentName || !details) {
+                    toggleLoading(button, false);
+                    return showAlert("날짜, 학번, 이름, 위반 내역을 모두 입력해주세요.");
+                }
+                if (!/^\d{4}$/.test(studentId)) {
+                    toggleLoading(button, false);
+                    return showAlert("학번은 4자리 숫자(학년+반+번호)로 입력해주세요.");
+                }
+
+                try {
+                    const studentDoc = await getDoc(doc(db, "students", studentId));
+                    if (!studentDoc.exists()) {
+                        toggleLoading(button, false);
+                        return showAlert("명렬에 없는 학생입니다. 학번과 이름을 다시 확인하세요.");
+                    }
+
+                    await addDoc(collection(db, "violations"), { studentId, studentName, details, teacherId: auth.currentUser.uid, recorderName: currentUserName, recorderRole: currentUserRole, timestamp: new Date(date) });
+                    
+                    const q = query(collection(db, "violations"), where("studentId", "==", studentId));
+                    const violationsSnapshot = await getDocs(q);
+                    const totalViolations = violationsSnapshot.size;
+                    const pastViolations = violationsSnapshot.docs
+                        .map(doc => doc.data())
+                        .sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+
+                    const resultModalContentBox = document.getElementById('result-modal-content-box');
+                    const resultModalTitle = document.getElementById('result-modal-title');
+
+                    resultModalContentBox.classList.remove('danger');
+                    if (totalViolations >= 3) {
+                        resultModalContentBox.classList.add('danger');
+                        resultModalTitle.textContent = '🚨 특별 관리 대상 🚨';
+                    } else {
+                        resultModalTitle.textContent = '기록 완료';
+                    }
+                    
+                    document.getElementById('result-content').innerHTML = `
+                        <p class="text-lg"><strong class="text-red-500 text-xl">${totalViolations}번째</strong> 위반이 기록되었습니다.</p>
+                        <div class="mt-2 text-sm bg-gray-50 p-2 rounded">
+                            <p><strong>날짜:</strong> ${date}</p>
+                            <p><strong>학생:</strong> ${studentId} ${studentName}</p>
+                            <p><strong>위반내역:</strong> ${details}</p>
+                        </div>
+                        <div class="mt-4 pt-4 border-t max-h-48 overflow-y-auto">
+                            <h3 class="font-bold mb-2">전체 위반 기록 (${totalViolations}건)</h3>
+                            <ul class="list-disc list-inside text-sm space-y-1">
+                                ${pastViolations.map(v => `<li><span class="font-semibold">${v.timestamp.toDate().toISOString().split('T')[0]}:</span> ${v.details}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+
+                    document.getElementById('result-modal').classList.remove('hidden');
+                    ['student-id', 'student-name', 'violation-details'].forEach(id => document.getElementById(id).value = '');
+                } catch (error) {
+                    console.error("제출 오류:", error);
+                    showAlert("데이터 처리 중 오류가 발생했습니다.");
+                } finally {
+                    toggleLoading(button, false);
+                }
+            });
+            document.getElementById('result-modal-ok-btn').addEventListener('click', () => document.getElementById('result-modal').classList.add('hidden'));
+
+            let currentAction = null;
+            const classSelectorModal = document.getElementById('class-selector-modal');
+            const classSelectorTitle = document.getElementById('class-selector-title');
+            
+            document.getElementById('view-by-class-btn').addEventListener('click', () => {
+                currentAction = 'viewLog';
+                classSelectorTitle.textContent = '조회할 학급 선택';
+                createClassSelectors('class-selector-container');
+                classSelectorModal.classList.remove('hidden');
+            });
+
+            document.getElementById('class-selector-cancel-btn').addEventListener('click', () => classSelectorModal.classList.add('hidden'));
+
+            document.getElementById('class-selector-confirm-btn').addEventListener('click', async () => {
+                const grade = document.getElementById('class-selector-container-grade').value;
+                const studentClass = document.getElementById('class-selector-container-class').value;
+                classSelectorModal.classList.add('hidden');
+
+                if (currentAction === 'viewLog') await showClassLog(grade, studentClass);
+                else if (currentAction === 'viewStats') await showReport(grade, studentClass, 'monthly');
+            });
+
+            async function showClassLog(grade, studentClass) {
+                const classPrefix = grade + studentClass;
+                document.getElementById('class-log-title').textContent = `${grade}학년 ${studentClass}반 위반 기록`;
+                const logContent = document.getElementById('class-log-content');
+                logContent.innerHTML = `<div class="flex justify-center p-4"><div class="loader"></div></div>`;
+                document.getElementById('class-log-modal').classList.remove('hidden');
+
+                const q = query(collection(db, "violations"), 
+                    where("studentId", ">=", classPrefix + "00"), 
+                    where("studentId", "<=", classPrefix + "99"));
+
+                try {
+                    const querySnapshot = await getDocs(q);
+                    const violations = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    violations.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+
+                    if (violations.length === 0) {
+                        logContent.innerHTML = `<p class="text-center text-gray-500">위반 기록이 없습니다.</p>`;
+                    } else {
+                        logContent.innerHTML = `
+                            <table class="w-full text-sm text-left text-gray-500">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50"><tr>
+                                    <th class="px-2 py-2">날짜</th><th class="px-2 py-2">학생</th><th class="px-2 py-2">내역</th><th class="px-2 py-2">작성자</th><th class="px-2 py-2 text-right">관리</th>
+                                </tr></thead>
+                                <tbody>
+                                    ${violations.map(d => {
+                                        const date = d.timestamp.toDate().toISOString().split('T')[0];
+                                        const isAdmin = currentUserRole === 'admin';
+                                        const recorderRoleText = d.recorderRole === 'teacher' ? '교사' : d.recorderRole === 'prefect' ? '선도부' : '관리자';
+                                        const recorderInfo = `${d.recorderName || ''} (${recorderRoleText})`;
+                                        const controls = isAdmin ? `<button class="edit-btn text-blue-500 mr-2" data-id="${d.id}">수정</button><button class="delete-btn text-red-500" data-id="${d.id}">삭제</button>` : '';
+                                        return `<tr class="border-b">
+                                            <td class="px-2 py-2">${date}</td>
+                                            <td class="px-2 py-2">${d.studentId} ${d.studentName}</td>
+                                            <td class="px-2 py-2">${d.details}</td>
+                                            <td class="px-2 py-2">${recorderInfo}</td>
+                                            <td class="px-2 py-2 text-right">${controls}</td>
+                                        </tr>`;
+                                    }).join('')}
+                                </tbody>
+                            </table>`;
+                    }
+                } catch (error) {
+                    console.error("반별 기록 조회 오류:", error);
+                    logContent.innerHTML = `<p class="text-center text-red-500">기록을 불러오는 중 오류가 발생했습니다.</p>`;
+                }
             }
+            document.getElementById('class-log-close-btn').addEventListener('click', () => {
+                document.getElementById('class-log-modal').classList.add('hidden');
+            });
+            
+            document.getElementById('class-log-content').addEventListener('click', async (e) => {
+                const target = e.target;
+                const docId = target.dataset.id;
+                if (!docId || currentUserRole !== 'admin') return;
 
-            loginSection.classList.add('hidden');
-            registerSection.classList.add('hidden');
-            mainAppSection.classList.remove('hidden');
+                if (target.classList.contains('edit-btn')) {
+                    const docSnap = await getDoc(doc(db, "violations", docId));
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        document.getElementById('edit-doc-id').value = docId;
+                        document.getElementById('edit-violation-date').value = data.timestamp.toDate().toISOString().split('T')[0];
+                        document.getElementById('edit-violation-details').value = data.details;
+                        document.getElementById('edit-violation-modal').classList.remove('hidden');
+                    }
+                } else if (target.classList.contains('delete-btn')) {
+                    if (await showConfirm("이 위반 기록을 정말 삭제하시겠습니까?")) {
+                        await deleteDoc(doc(db, "violations", docId));
+                        await showAlert("기록이 삭제되었습니다.");
+                        const title = document.getElementById('class-log-title').textContent;
+                        const grade = title.charAt(0);
+                        const studentClass = title.split(' ')[1].replace('반', '');
+                        await showClassLog(grade, studentClass);
+                    }
+                }
+            });
+            document.getElementById('save-violation-btn').addEventListener('click', async () => {
+                const docId = document.getElementById('edit-doc-id').value;
+                const newDate = document.getElementById('edit-violation-date').value;
+                const newDetails = document.getElementById('edit-violation-details').value;
+                if (!newDate || !newDetails) return showAlert("날짜와 위반 내역을 모두 입력하세요.");
+                await updateDoc(doc(db, "violations", docId), { timestamp: new Date(newDate), details: newDetails });
+                document.getElementById('edit-violation-modal').classList.add('hidden');
+                await showAlert("기록이 수정되었습니다.");
+                const title = document.getElementById('class-log-title').textContent;
+                const grade = title.charAt(0);
+                const studentClass = title.split(' ')[1].replace('반', '');
+                await showClassLog(grade, studentClass);
+            });
 
-            const isAdmin = currentUserRole === 'admin';
-            const isTeacher = currentUserRole === 'teacher';
+            // --- 관리자 기능 ---
+            document.getElementById('manage-students-btn').addEventListener('click', () => {
+                createClassSelectors('student-list-selector');
+                document.getElementById('student-list-modal').classList.remove('hidden');
+                const gradeSelect = document.getElementById('student-list-selector-grade');
+                const classSelect = document.getElementById('student-list-selector-class');
+                async function render() { await renderStudentList(gradeSelect.value, classSelect.value); }
+                gradeSelect.addEventListener('change', render);
+                classSelect.addEventListener('change', render);
+                render();
+            });
 
-            adminControls.classList.toggle('hidden', !isAdmin);
-            teacherMenu.classList.toggle('hidden', !(isAdmin || isTeacher));
+            async function renderStudentList(grade, studentClass) {
+                const studentListContent = document.getElementById('student-list-content');
+                studentListContent.innerHTML = `<div class="flex justify-center p-4"><div class="loader"></div></div>`;
+                const classPrefix = grade + studentClass;
+                const q = query(collection(db, "students"), where("__name__", ">=", classPrefix + "00"), where("__name__", "<=", classPrefix + "99"));
+                try {
+                    const querySnapshot = await getDocs(q);
+                    const students = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.id.localeCompare(b.id));
 
-            listenToTitle();
-            violationDateInput.value = todayKST(); // 날짜 기본값(KST)
-          } else {
-            currentUserRole = null;
-            currentUserName = null;
-            loginSection.classList.remove('hidden');
-            registerSection.classList.add('hidden');
-            mainAppSection.classList.add('hidden');
-          }
-        }catch(e){
-          console.error(e);
-          await showAlert("초기 설정 중 문제가 발생했습니다. 다시 시도해주세요.");
-        }finally{
-          updateLoadingProgress(100, '로딩 완료!');
-          setTimeout(()=>{
-            appContainer.classList.remove('hidden');
-            loadingScreen.classList.add('hidden');
-          }, 300);
-        }
-      });
-    }
+                    if (students.length === 0) {
+                        studentListContent.innerHTML = `<p class="text-center text-gray-500">등록된 학생이 없습니다.</p>`;
+                    } else {
+                        studentListContent.innerHTML = `<table class="w-full text-sm">${students.map(s => `<tr class="border-b"><td class="py-1">${s.id}</td><td>${s.name}</td><td class="text-right"><button class="delete-student-btn text-red-500" data-id="${s.id}">삭제</button></td></tr>`).join('')}</table>`;
+                    }
+                } catch (error) {
+                    console.error("학생 명렬 조회 오류:", error);
+                    studentListContent.innerHTML = `<p class="text-center text-red-500">명렬을 불러오는 중 오류가 발생했습니다.</p>`;
+                }
+            }
+            
+            const addStudentBtn = document.getElementById('add-student-btn');
+            const addStudentAction = async () => {
+                toggleLoading(addStudentBtn, true);
+                const grade = document.getElementById('student-list-selector-grade').value;
+                const studentClass = document.getElementById('student-list-selector-class').value;
+                const number = document.getElementById('new-student-id-suffix').value.trim().padStart(2, '0');
+                const name = document.getElementById('new-student-name').value.trim();
+                
+                if (!number || !name || number.length !== 2) {
+                    toggleLoading(addStudentBtn, false);
+                    return showAlert("정확한 번호(2자리)와 이름을 입력하세요.");
+                }
 
-    function listenToTitle(){
-      // 실시간 제목 리스너 (단일 구독)
-      onSnapshot(doc(db, "config", "mainSettings"), (snap)=>{
-        mainTitle.textContent = snap.exists() ? (snap.data().title || "학생지도 사항") : "학생지도 사항";
-      }, (err)=>{
-        console.error("listenToTitle error:", err);
-        mainTitle.textContent = "학생지도 사항";
-      });
-    }
+                const studentId = grade + studentClass + number;
+                try {
+                    await setDoc(doc(db, "students", studentId), { name });
+                    await showAlert("학생이 성공적으로 추가되었습니다.");
+                    document.getElementById('new-student-id-suffix').value = '';
+                    document.getElementById('new-student-name').value = '';
+                    await renderStudentList(grade, studentClass);
+                } catch (error) {
+                    console.error("학생 추가 오류:", error);
+                    showAlert("학생 추가 중 오류가 발생했습니다.");
+                } finally {
+                    toggleLoading(addStudentBtn, false);
+                }
+            };
+            addStudentBtn.addEventListener('click', addStudentAction);
+            document.getElementById('new-student-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addStudentAction(); } });
 
-    /* ---------------- 이벤트 바인딩 ---------------- */
-    document.getElementById('show-register-link').addEventListener('click', (e)=>{ e.preventDefault(); loginSection.classList.add('hidden'); registerSection.classList.remove('hidden'); });
-    document.getElementById('show-login-link').addEventListener('click', (e)=>{ e.preventDefault(); loginSection.classList.remove('hidden'); registerSection.classList.add('hidden'); });
 
-    document.getElementById('login-btn').addEventListener('click', async (e)=>{
-      const btn = e.currentTarget;
-      toggleLoading(btn, true);
-      const name = document.getElementById('login-name').value.trim();
-      const password = document.getElementById('password').value;
+            document.getElementById('student-list-content').addEventListener('click', async (e) => {
+                if (e.target.classList.contains('delete-student-btn')) {
+                    const studentId = e.target.dataset.id;
+                    if (await showConfirm(`학번 ${studentId} 학생을 정말 삭제하시겠습니까?`)) {
+                        await deleteDoc(doc(db, "students", studentId));
+                        const grade = document.getElementById('student-list-selector-grade').value;
+                        const studentClass = document.getElementById('student-list-selector-class').value;
+                        await renderStudentList(grade, studentClass);
+                    }
+                }
+            });
+            
+            document.getElementById('edit-title-btn').addEventListener('click', async () => {
+                const newTitle = await showPrompt("페이지 제목 수정", "새로운 제목을 입력하세요:", mainTitle.textContent);
+                if (newTitle?.trim()) {
+                    await setDoc(doc(db, "config", "mainSettings"), { title: newTitle.trim() });
+                    await showAlert("제목이 성공적으로 변경되었습니다.");
+                }
+            });
+            
+            document.getElementById('bulk-upload-btn').addEventListener('click', () => {
+                document.getElementById('bulk-upload-modal').classList.remove('hidden');
+            });
 
-      if (!name || !password){
-        toggleLoading(btn, false);
-        return showAlert("이름과 비밀번호를 모두 입력해주세요.");
-      }
+            document.getElementById('process-bulk-upload-btn').addEventListener('click', async (e) => {
+                const button = e.currentTarget;
+                toggleLoading(button, true);
+                const data = document.getElementById('bulk-data-input').value.trim();
+                if (!data) {
+                    toggleLoading(button, false);
+                    return showAlert("데이터를 입력해주세요.");
+                }
 
-      try{
-        // 이름으로 이메일 찾기
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("name", "==", name));
-        const qs = await getDocs(q);
-        if (qs.empty) throw new Error("User not found");
-        const userDoc = qs.docs[0].data();
-        const email = userDoc.email;
-        await signInWithEmailAndPassword(auth, email, password);
-      }catch(err){
-        document.getElementById('login-error').textContent = "이름 또는 비밀번호가 잘못되었습니다.";
-        console.error(err);
-      }finally{
-        toggleLoading(btn, false);
-      }
-    });
+                const lines = data.split('\n');
+                const batch = writeBatch(db);
+                let successCount = 0;
+                let errorCount = 0;
 
-    document.getElementById('logout-btn').addEventListener('click', ()=> signOut(auth));
+                lines.forEach(line => {
+                    const parts = line.split(/\s+/);
+                    if (parts.length >= 2) {
+                        const studentId = parts[0].trim();
+                        const name = parts.slice(1).join(' ').trim();
+                        if (/^\d{4}$/.test(studentId) && name) {
+                            const studentRef = doc(db, "students", studentId);
+                            batch.set(studentRef, { name });
+                            successCount++;
+                        } else { errorCount++; }
+                    } else { errorCount++; }
+                });
 
-    document.getElementById('register-btn').addEventListener('click', async (e)=>{
-      const btn = e.currentTarget;
-      toggleLoading(btn, true);
+                if (successCount === 0) {
+                    toggleLoading(button, false);
+                    return showAlert("올바른 형식의 데이터가 없습니다. '학번 이름' 형식으로 입력해주세요.");
+                }
 
-      const name = document.getElementById('register-name').value.trim();
-      const password = document.getElementById('register-password').value;
-      const code = document.getElementById('register-code').value.trim();
+                try {
+                    await batch.commit();
+                    document.getElementById('bulk-upload-modal').classList.add('hidden');
+                    document.getElementById('bulk-data-input').value = '';
+                    await showAlert(`${successCount}명의 학생이 성공적으로 등록되었습니다. (실패: ${errorCount}건)`);
+                } catch (error) {
+                    console.error("일괄 등록 오류:", error);
+                    showAlert("일괄 등록 중 오류가 발생했습니다.");
+                } finally {
+                    toggleLoading(button, false);
+                }
+            });
 
-      if (!name || !password || !code){
-        toggleLoading(btn, false);
-        return showAlert("모든 항목을 입력해주세요.");
-      }
+            document.getElementById('year-end-btn').addEventListener('click', () => {
+                document.getElementById('year-end-modal').classList.remove('hidden');
+                document.getElementById('year-end-confirm-checkbox').checked = false;
+                document.getElementById('process-year-end-btn').disabled = true;
+            });
 
-      try{
-        // 이름 중복 체크
-        const q1 = query(collection(db, "users"), where("name", "==", name));
-        const snap1 = await getDocs(q1);
-        if (!snap1.empty){
-          toggleLoading(btn, false);
-          return showAlert("이미 사용 중인 이름입니다. 다른 이름을 사용해주세요.");
-        }
+            document.getElementById('year-end-confirm-checkbox').addEventListener('change', (e) => {
+                document.getElementById('process-year-end-btn').disabled = !e.target.checked;
+            });
 
-        // 가입 코드 확인
-        const codesSnap = await getDoc(doc(db, "config", "registrationCodes"));
-        if (!codesSnap.exists()){
-          toggleLoading(btn, false);
-          return showAlert("가입 코드가 설정되지 않았습니다. 관리자에게 문의하세요.");
-        }
-        const { teacher, prefect } = codesSnap.data();
-        let role = null;
-        if (code === teacher) role = 'teacher';
-        else if (code === prefect) role = 'prefect';
-        if (!role){
-          toggleLoading(btn, false);
-          return showAlert("가입 코드가 올바르지 않습니다.");
-        }
+            document.getElementById('process-year-end-btn').addEventListener('click', async (e) => {
+                const confirmed1 = await showConfirm("정말로 모든 3학년을 졸업시키고 재학생을 진급시키겠습니까? 이 작업은 되돌릴 수 없습니다.");
+                if (!confirmed1) return;
 
-        const email = createDummyEmail(name);
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        await setDoc(doc(db, "users", cred.user.uid), { role, name, email }, { merge:true });
-        await showAlert("회원가입이 완료되었습니다. 자동으로 로그인됩니다.");
-      }catch(err){
-        if (err.code === 'auth/email-already-in-use') showAlert("내부 오류가 발생했습니다. 다른 이름으로 다시 시도해주세요.");
-        else if (err.code === 'auth/weak-password') showAlert("비밀번호는 6자리 이상이어야 합니다.");
-        else showAlert("회원가입 중 오류가 발생했습니다.");
-        console.error("가입 오류:", err);
-      }finally{
-        toggleLoading(btn, false);
-      }
-    });
+                const finalConfirmation = await showPrompt("마지막 확인", "데이터가 영구적으로 변경됩니다. 진행하시려면 '진급'이라고 정확히 입력해주세요.");
+                if (finalConfirmation !== '진급') {
+                    return showAlert("입력이 일치하지 않아 취소되었습니다.");
+                }
 
-    // 기록 제출
-    document.getElementById('submit-btn').addEventListener('click', async (e)=>{
-      const btn = e.currentTarget;
-      toggleLoading(btn, true);
+                const button = e.currentTarget;
+                toggleLoading(button, true);
 
-      const studentId = document.getElementById('student-id').value.trim();
-      const studentName = document.getElementById('student-name').value.trim();
-      const details = document.getElementById('violation-details').value.trim();
-      const dateStr = violationDateInput.value;
+                try {
+                    const studentsSnapshot = await getDocs(collection(db, "students"));
+                    const violationsSnapshot = await getDocs(collection(db, "violations"));
+                    
+                    const batch = writeBatch(db);
 
-      if (!dateStr || !studentId || !studentName || !details){
-        toggleLoading(btn, false);
-        return showAlert("날짜, 학번, 이름, 위반 내역을 모두 입력해주세요.");
-      }
-      if (!/^\d{4}$/.test(studentId)){
-        toggleLoading(btn, false);
-        return showAlert("학번은 4자리 숫자(학년+반+번호)로 입력해주세요.");
-      }
+                    const studentsToProcess = studentsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    const violationsToProcess = violationsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      try{
-        const studentDoc = await getDoc(doc(db, "students", studentId));
-        if (!studentDoc.exists()){
-          toggleLoading(btn, false);
-          return showAlert("명렬에 없는 학생입니다. 학번과 이름을 다시 확인하세요.");
-        }
+                    for (const student of studentsToProcess) {
+                        const grade = student.id.charAt(0);
+                        if (grade === '3') { 
+                            batch.delete(doc(db, "students", student.id));
+                        } else if (grade === '2' || grade === '1') {
+                            const newGrade = String(Number(grade) + 1);
+                            const newId = newGrade + student.id.substring(1);
+                            batch.set(doc(db, "students", newId), { name: student.name });
+                            batch.delete(doc(db, "students", student.id));
+                        }
+                    }
 
-        // KST 기준 날짜 저장
-        const kstDate = kstDateFromYMD(dateStr);
-        await addDoc(collection(db, "violations"), {
-          studentId,
-          studentName,
-          details,
-          teacherId: (auth.currentUser && auth.currentUser.uid) || '',
-          recorderName: currentUserName || '',
-          recorderRole: currentUserRole || '',
-          timestamp: kstDate
+                    for (const violation of violationsToProcess) {
+                        const grade = violation.studentId.charAt(0);
+                         if (grade === '3') {
+                            batch.delete(doc(db, "violations", violation.id));
+                        } else if (grade === '2' || grade === '1') {
+                            const newGrade = String(Number(grade) + 1);
+                            const newId = newGrade + violation.studentId.substring(1);
+                            batch.update(doc(db, "violations", violation.id), { studentId: newId });
+                        }
+                    }
+
+                    await batch.commit();
+
+                    document.getElementById('year-end-modal').classList.add('hidden');
+                    await showAlert("학년 진급 처리가 성공적으로 완료되었습니다. 1학년 학생들은 '엑셀로 일괄 등록' 기능을 사용하여 새로 등록해주세요.");
+
+                } catch (error) {
+                    console.error("학년 진급 처리 오류:", error);
+                    await showAlert("학년 진급 처리 중 심각한 오류가 발생했습니다. 관리자에게 문의하세요.");
+                } finally {
+                    toggleLoading(button, false);
+                }
+            });
+            
+            // 가입 코드 관리
+            document.getElementById('manage-codes-btn').addEventListener('click', async () => {
+                const codesDoc = await getDoc(doc(db, "config", "registrationCodes"));
+                if (codesDoc.exists()) {
+                    const codes = codesDoc.data();
+                    document.getElementById('teacher-code-input').value = codes.teacher || '';
+                    document.getElementById('prefect-code-input').value = codes.prefect || '';
+                }
+                document.getElementById('code-manager-modal').classList.remove('hidden');
+            });
+
+            document.getElementById('save-codes-btn').addEventListener('click', async (e) => {
+                const button = e.currentTarget;
+                toggleLoading(button, true);
+                const teacherCode = document.getElementById('teacher-code-input').value.trim();
+                const prefectCode = document.getElementById('prefect-code-input').value.trim();
+                try {
+                    await setDoc(doc(db, "config", "registrationCodes"), { teacher: teacherCode, prefect: prefectCode });
+                    await showAlert("가입 코드가 성공적으로 저장되었습니다.");
+                    document.getElementById('code-manager-modal').classList.add('hidden');
+                } catch (error) {
+                    console.error("코드 저장 오류:", error);
+                    await showAlert("코드 저장 중 오류가 발생했습니다.");
+                } finally {
+                    toggleLoading(button, false);
+                }
+            });
+
+            // 보고서 기능
+            document.getElementById('report-btn').addEventListener('click', () => {
+                currentAction = 'viewStats';
+                classSelectorTitle.textContent = '월별 현황을 볼 학급 선택';
+                createClassSelectors('class-selector-container');
+                classSelectorModal.classList.remove('hidden');
+            });
+
+            document.getElementById('manage-all-data-btn').addEventListener('click', () => {
+                document.getElementById('all-data-modal').classList.remove('hidden');
+            });
+
+            document.getElementById('export-all-btn').addEventListener('click', async () => {
+                const allViolations = await getDocs(collection(db, "violations"));
+                if (allViolations.empty) return showAlert("내보낼 데이터가 없습니다.");
+
+                const studentIds = [...new Set(allViolations.docs.map(d => d.data().studentId))];
+                const allViolationsPromises = studentIds.map(id => getDocs(query(collection(db, "violations"), where("studentId", "==", id))));
+                const allViolationsSnapshots = await Promise.all(allViolationsPromises);
+                const totalCounts = {};
+                allViolationsSnapshots.forEach((snap, index) => {
+                    totalCounts[studentIds[index]] = snap.size;
+                });
+
+                const exportData = allViolations.docs
+                    .map(doc => doc.data())
+                    .sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis())
+                    .map(v => ({
+                        "학년": v.studentId.charAt(0),
+                        "반": v.studentId.charAt(1),
+                        "학번": v.studentId,
+                        "이름": v.studentName,
+                        "위반일": v.timestamp.toDate().toISOString().split('T')[0],
+                        "위반내역": v.details,
+                        "기록자": v.recorderName,
+                        "기록자 역할": v.recorderRole,
+                        "총 위반횟수": totalCounts[v.studentId]
+                    }));
+                
+                exportToExcel(exportData, `전체_위반기록.xlsx`);
+            });
+
+            document.getElementById('delete-last-month-btn').addEventListener('click', async () => {
+                const confirmed = await showConfirm("정말로 '지난달'의 모든 위반 기록을 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.");
+                if (!confirmed) return;
+
+                const finalConfirmation = await showPrompt("마지막 확인", "데이터가 영구적으로 삭제됩니다. 진행하시려면 '지난달기록삭제'라고 정확히 입력해주세요.");
+                if (finalConfirmation !== '지난달기록삭제') {
+                    return showAlert("입력이 일치하지 않아 취소되었습니다.");
+                }
+
+                const now = new Date();
+                const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+                const q = query(collection(db, "violations"), 
+                    where("timestamp", ">=", startOfLastMonth),
+                    where("timestamp", "<=", endOfLastMonth));
+                
+                const snapshot = await getDocs(q);
+                if(snapshot.empty) return showAlert("삭제할 지난달 기록이 없습니다.");
+
+                const batch = writeBatch(db);
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                await showAlert(`총 ${snapshot.size}건의 지난달 위반 기록이 삭제되었습니다.`);
+            });
         });
-
-        // 누적 조회
-        const q = query(collection(db, "violations"), where("studentId", "==", studentId));
-        const vs = await getDocs(q);
-        const totalViolations = vs.size;
-        const past = vs.docs.map(d=>d.data())
-          .sort((a,b)=> (a.timestamp?.toMillis?.()||new Date(a.timestamp).getTime()) < (b.timestamp?.toMillis?.()||new Date(b.timestamp).getTime()) ? 1 : -1);
-
-        const box = document.getElementById('result-modal-content-box');
-        const title = document.getElementById('result-modal-title');
-        box.classList.remove('danger');
-        if (totalViolations >= 3){
-          box.classList.add('danger');
-          title.textContent = '🚨 특별 관리 대상 🚨';
-        }else{
-          title.textContent = '기록 완료';
-        }
-
-        document.getElementById('result-content').innerHTML = `
-          <p class="text-lg"><strong class="text-red-500 text-xl">${totalViolations}번째</strong> 위반이 기록되었습니다.</p>
-          <div class="mt-2 text-sm bg-gray-50 p-2 rounded">
-            <p><strong>날짜:</strong> ${dateStr}</p>
-            <p><strong>학생:</strong> ${studentId} ${studentName}</p>
-            <p><strong>위반내역:</strong> ${details}</p>
-          </div>
-          <div class="mt-4 pt-4 border-t max-h-48 overflow-y-auto">
-            <h3 class="font-bold mb-2">전체 위반 기록 (${totalViolations}건)</h3>
-            <ul class="list-disc list-inside text-sm space-y-1">
-              ${past.map(v => `<li><span class="font-semibold">${formatDateKST(v.timestamp)}:</span> ${v.details}</li>`).join('')}
-            </ul>
-          </div>
-        `;
-        document.getElementById('result-modal').classList.remove('hidden');
-
-        ['student-id','student-name','violation-details'].forEach(id=>document.getElementById(id).value='');
-        violationDateInput.value = todayKST();
-      }catch(err){
-        console.error("제출 오류:", err);
-        showAlert("데이터 처리 중 오류가 발생했습니다.");
-      }finally{
-        toggleLoading(btn, false);
-      }
-    });
-    document.getElementById('result-modal-ok-btn').addEventListener('click', ()=> document.getElementById('result-modal').classList.add('hidden'));
-
-    /* ----- 반별 조회 ----- */
-    let currentAction = null;
-    const classSelectorModal = document.getElementById('class-selector-modal');
-    const classSelectorTitle = document.getElementById('class-selector-title');
-
-    document.getElementById('view-by-class-btn').addEventListener('click', ()=>{
-      currentAction = 'viewLog';
-      classSelectorTitle.textContent = '조회할 학급 선택';
-      createClassSelectors('class-selector-container');
-      classSelectorModal.classList.remove('hidden');
-    });
-    document.getElementById('class-selector-cancel-btn').addEventListener('click', ()=> classSelectorModal.classList.add('hidden'));
-
-    document.getElementById('class-selector-confirm-btn').addEventListener('click', async ()=>{
-      const grade = document.getElementById('class-selector-container-grade').value;
-      const studentClass = document.getElementById('class-selector-container-class').value;
-      classSelectorModal.classList.add('hidden');
-
-      if (currentAction === 'viewLog') await showClassLog(grade, studentClass);
-      else if (currentAction === 'viewStats') await showMonthlyStats(grade, studentClass); // ✅ 버그 수정: 존재하지 않는 showReport → showMonthlyStats
-    });
-
-    async function showClassLog(grade, studentClass){
-      const classPrefix = grade + studentClass;
-      document.getElementById('class-log-title').textContent = `${grade}학년 ${studentClass}반 위반 기록`;
-      const logContent = document.getElementById('class-log-content');
-      logContent.innerHTML = `<div class="flex justify-center p-4"><div class="loader"></div></div>`;
-      document.getElementById('class-log-modal').classList.remove('hidden');
-
-      try{
-        const q1 = query(
-          collection(db, "violations"),
-          where("studentId", ">=", classPrefix + "00"),
-          where("studentId", "<=", classPrefix + "99")
-        );
-        const qs = await getDocs(q1);
-        const violations = qs.docs.map(d=>({ id:d.id, ...d.data() }))
-          .sort((a,b)=> (a.timestamp?.toMillis?.()||new Date(a.timestamp).getTime()) < (b.timestamp?.toMillis?.()||new Date(b.timestamp).getTime()) ? 1 : -1);
-
-        if (violations.length === 0){
-          logContent.innerHTML = `<p class="text-center text-gray-500">위반 기록이 없습니다.</p>`;
-        }else{
-          logContent.innerHTML = `
-            <table class="w-full text-sm text-left text-gray-500">
-              <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                <tr>
-                  <th class="px-2 py-2">날짜</th>
-                  <th class="px-2 py-2">학생</th>
-                  <th class="px-2 py-2">내역</th>
-                  <th class="px-2 py-2">작성자</th>
-                  <th class="px-2 py-2 text-right">관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${violations.map(d=>{
-                  const date = formatDateKST(d.timestamp);
-                  const isAdmin = currentUserRole === 'admin';
-                  const rr = d.recorderRole === 'teacher' ? '교사' : d.recorderRole === 'prefect' ? '선도부' : '관리자';
-                  const who = `${d.recorderName || ''} (${rr})`;
-                  const controls = isAdmin ? `<button class="edit-btn text-blue-500 mr-2" data-id="${d.id}">수정</button><button class="delete-btn text-red-500" data-id="${d.id}">삭제</button>` : '';
-                  return `<tr class="border-b">
-                    <td class="px-2 py-2">${date}</td>
-                    <td class="px-2 py-2">${d.studentId} ${d.studentName}</td>
-                    <td class="px-2 py-2">${d.details}</td>
-                    <td class="px-2 py-2">${who}</td>
-                    <td class="px-2 py-2 text-right">${controls}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>`;
-        }
-      }catch(err){
-        console.error("반별 기록 조회 오류:", err);
-        logContent.innerHTML = `<p class="text-center text-red-500">기록을 불러오는 중 오류가 발생했습니다.</p>`;
-      }
-    }
-    document.getElementById('class-log-close-btn').addEventListener('click', ()=> document.getElementById('class-log-modal').classList.add('hidden'));
-
-    document.getElementById('class-log-content').addEventListener('click', async (e)=>{
-      const t = e.target;
-      const id = t.dataset.id;
-      if (!id || currentUserRole !== 'admin') return;
-
-      if (t.classList.contains('edit-btn')){
-        const snap = await getDoc(doc(db, "violations", id));
-        if (snap.exists()){
-          const data = snap.data();
-          document.getElementById('edit-doc-id').value = id;
-          document.getElementById('edit-violation-date').value = formatDateKST(data.timestamp);
-          document.getElementById('edit-violation-details').value = data.details;
-          document.getElementById('edit-violation-modal').classList.remove('hidden');
-        }
-      }else if (t.classList.contains('delete-btn')){
-        if (await showConfirm("이 위반 기록을 정말 삭제하시겠습니까?")){
-          await deleteDoc(doc(db, "violations", id));
-          await showAlert("기록이 삭제되었습니다.");
-          const title = document.getElementById('class-log-title').textContent;
-          const grade = title.charAt(0);
-          const studentClass = title.split(' ')[1].replace('반','');
-          await showClassLog(grade, studentClass);
-        }
-      }
-    });
-
-    document.getElementById('save-violation-btn').addEventListener('click', async ()=>{
-      const id = document.getElementById('edit-doc-id').value;
-      const newDate = document.getElementById('edit-violation-date').value;
-      const newDetails = document.getElementById('edit-violation-details').value;
-      if (!newDate || !newDetails) return showAlert("날짜와 위반 내역을 모두 입력하세요.");
-      await updateDoc(doc(db, "violations", id), { timestamp: kstDateFromYMD(newDate), details: newDetails });
-      document.getElementById('edit-violation-modal').classList.add('hidden');
-      await showAlert("기록이 수정되었습니다.");
-      const title = document.getElementById('class-log-title').textContent;
-      const grade = title.charAt(0);
-      const studentClass = title.split(' ')[1].replace('반','');
-      await showClassLog(grade, studentClass);
-    });
-
-    /* ----- 학생 명렬 관리(관리자) ----- */
-    document.getElementById('manage-students-btn').addEventListener('click', ()=>{
-      createClassSelectors('student-list-selector');
-      document.getElementById('student-list-modal').classList.remove('hidden');
-      const gSel = document.getElementById('student-list-selector-grade');
-      const cSel = document.getElementById('student-list-selector-class');
-      const render = async ()=> renderStudentList(gSel.value, cSel.value);
-      gSel.addEventListener('change', render);
-      cSel.addEventListener('change', render);
-      render();
-    });
-
-    async function renderStudentList(grade, studentClass){
-      const box = document.getElementById('student-list-content');
-      box.innerHTML = `<div class="flex justify-center p-4"><div class="loader"></div></div>`;
-      const prefix = grade + studentClass;
-      try{
-        const q1 = query(collection(db, "students"),
-          where("__name__", ">=", prefix + "00"),
-          where("__name__", "<=", prefix + "99"));
-        const qs = await getDocs(q1);
-        const list = qs.docs.map(d=>({ id:d.id, ...d.data() })).sort((a,b)=> a.id.localeCompare(b.id));
-        if (!list.length){
-          box.innerHTML = `<p class="text-center text-gray-500">등록된 학생이 없습니다.</p>`;
-        }else{
-          box.innerHTML = `
-            <table class="w-full text-sm">
-              ${list.map(s=>`
-                <tr class="border-b">
-                  <td class="py-1">${s.id}</td>
-                  <td>${s.name}</td>
-                  <td class="text-right"><button class="delete-student-btn text-red-500" data-id="${s.id}">삭제</button></td>
-                </tr>`).join('')}
-            </table>`;
-        }
-      }catch(err){
-        console.error("학생 명렬 조회 오류:", err);
-        box.innerHTML = `<p class="text-center text-red-500">명렬을 불러오는 중 오류가 발생했습니다.</p>`;
-      }
-    }
-
-    const addStudentBtn = document.getElementById('add-student-btn');
-    const addStudentAction = async ()=>{
-      toggleLoading(addStudentBtn, true);
-      const grade = document.getElementById('student-list-selector-grade').value;
-      const studentClass = document.getElementById('student-list-selector-class').value;
-      const number = document.getElementById('new-student-id-suffix').value.trim().padStart(2,'0');
-      const name = document.getElementById('new-student-name').value.trim();
-
-      if (!number || !name || number.length !== 2){
-        toggleLoading(addStudentBtn, false);
-        return showAlert("정확한 번호(2자리)와 이름을 입력하세요.");
-      }
-
-      const id = grade + studentClass + number;
-      try{
-        await setDoc(doc(db, "students", id), { name });
-        await showAlert("학생이 성공적으로 추가되었습니다.");
-        document.getElementById('new-student-id-suffix').value='';
-        document.getElementById('new-student-name').value='';
-        await renderStudentList(grade, studentClass);
-      }catch(err){
-        console.error("학생 추가 오류:", err);
-        showAlert("학생 추가 중 오류가 발생했습니다.");
-      }finally{
-        toggleLoading(addStudentBtn, false);
-      }
-    };
-    addStudentBtn.addEventListener('click', addStudentAction);
-    document.getElementById('new-student-name').addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ e.preventDefault(); addStudentAction(); } });
-
-    document.getElementById('student-list-content').addEventListener('click', async (e)=>{
-      if (e.target.classList.contains('delete-student-btn')){
-        const id = e.target.dataset.id;
-        if (await showConfirm(`학번 ${id} 학생을 정말 삭제하시겠습니까?`)){
-          await deleteDoc(doc(db, "students", id));
-          const g = document.getElementById('student-list-selector-grade').value;
-          const c = document.getElementById('student-list-selector-class').value;
-          await renderStudentList(g, c);
-        }
-      }
-    });
-
-    // 제목 수정
-    document.getElementById('edit-title-btn').addEventListener('click', async ()=>{
-      const newTitle = await showPrompt("페이지 제목 수정", "새로운 제목을 입력하세요:", mainTitle.textContent);
-      if (newTitle?.trim()){
-        await setDoc(doc(db, "config", "mainSettings"), { title: newTitle.trim() }, { merge:true });
-        await showAlert("제목이 성공적으로 변경되었습니다.");
-      }
-    });
-
-    // 일괄 업로드
-    document.getElementById('bulk-upload-btn').addEventListener('click', ()=> document.getElementById('bulk-upload-modal').classList.remove('hidden'));
-    document.getElementById('process-bulk-upload-btn').addEventListener('click', async (e)=>{
-      const btn = e.currentTarget;
-      toggleLoading(btn, true);
-      const data = document.getElementById('bulk-data-input').value.trim();
-      if (!data){
-        toggleLoading(btn, false);
-        return showAlert("데이터를 입력해주세요.");
-      }
-
-      const lines = data.split('\n');
-      const batch = writeBatch(db);
-      let ok=0, fail=0;
-      lines.forEach(line=>{
-        const parts = line.split(/\s+/);
-        if (parts.length>=2){
-          const sid = parts[0].trim();
-          const name = parts.slice(1).join(' ').trim();
-          if (/^\d{4}$/.test(sid) && name){
-            batch.set(doc(db,"students", sid), { name });
-            ok++;
-          }else fail++;
-        }else fail++;
-      });
-
-      if (ok===0){
-        toggleLoading(btn, false);
-        return showAlert("올바른 형식의 데이터가 없습니다. '학번 이름' 형식으로 입력해주세요.");
-      }
-
-      try{
-        await batch.commit();
-        document.getElementById('bulk-upload-modal').classList.add('hidden');
-        document.getElementById('bulk-data-input').value='';
-        await showAlert(`${ok}명의 학생이 성공적으로 등록되었습니다. (실패: ${fail}건)`);
-      }catch(err){
-        console.error("일괄 등록 오류:", err);
-        showAlert("일괄 등록 중 오류가 발생했습니다.");
-      }finally{
-        toggleLoading(btn, false);
-      }
-    });
-
-    // 학년말
-    document.getElementById('year-end-btn').addEventListener('click', ()=>{
-      document.getElementById('year-end-modal').classList.remove('hidden');
-      document.getElementById('year-end-confirm-checkbox').checked = false;
-      document.getElementById('process-year-end-btn').disabled = true;
-    });
-    document.getElementById('year-end-confirm-checkbox').addEventListener('change', (e)=>{
-      document.getElementById('process-year-end-btn').disabled = !e.target.checked;
-    });
-    document.getElementById('process-year-end-btn').addEventListener('click', async (e)=>{
-      const confirm1 = await showConfirm("정말로 모든 3학년을 졸업시키고 재학생을 진급시키겠습니까? 이 작업은 되돌릴 수 없습니다.");
-      if (!confirm1) return;
-      const final = await showPrompt("마지막 확인", "데이터가 영구적으로 변경됩니다. 진행하시려면 '진급'이라고 정확히 입력해주세요.");
-      if (final !== '진급') return showAlert("입력이 일치하지 않아 취소되었습니다.");
-
-      const btn = e.currentTarget;
-      toggleLoading(btn, true);
-      try{
-        const studentsSnap = await getDocs(collection(db,"students"));
-        const violationsSnap = await getDocs(collection(db,"violations"));
-        const batch = writeBatch(db);
-
-        const students = studentsSnap.docs.map(d=>({ id:d.id, ...d.data() }));
-        const violations = violationsSnap.docs.map(d=>({ id:d.id, ...d.data() }));
-
-        for (const s of students){
-          const g = s.id.charAt(0);
-          if (g==='3'){ batch.delete(doc(db,"students", s.id)); }
-          else if (g==='2' || g==='1'){
-            const newId = String(Number(g)+1) + s.id.substring(1);
-            batch.set(doc(db,"students", newId), { name:s.name });
-            batch.delete(doc(db,"students", s.id));
-          }
-        }
-
-        for (const v of violations){
-          const g = v.studentId?.charAt(0);
-          if (g==='3'){ batch.delete(doc(db,"violations", v.id)); }
-          else if (g==='2' || g==='1'){
-            const newId = String(Number(g)+1) + v.studentId.substring(1);
-            batch.update(doc(db,"violations", v.id), { studentId:newId });
-          }
-        }
-
-        await batch.commit();
-        document.getElementById('year-end-modal').classList.add('hidden');
-        await showAlert("학년 진급 처리가 성공적으로 완료되었습니다. 1학년 학생들은 '엑셀로 일괄 등록' 기능을 사용하여 새로 등록해주세요.");
-      }catch(err){
-        console.error("학년 진급 처리 오류:", err);
-        await showAlert("학년 진급 처리 중 심각한 오류가 발생했습니다. 관리자에게 문의하세요.");
-      }finally{
-        toggleLoading(btn, false);
-      }
-    });
-
-    // 가입 코드 관리(관리자)
-    document.getElementById('manage-codes-btn').addEventListener('click', async ()=>{
-      const snap = await getDoc(doc(db,"config","registrationCodes"));
-      if (snap.exists()){
-        const codes = snap.data();
-        document.getElementById('teacher-code-input').value = codes.teacher || '';
-        document.getElementById('prefect-code-input').value = codes.prefect || '';
-      }
-      document.getElementById('code-manager-modal').classList.remove('hidden');
-    });
-    document.getElementById('save-codes-btn').addEventListener('click', async (e)=>{
-      const btn = e.currentTarget;
-      toggleLoading(btn, true);
-      try{
-        const teacher = document.getElementById('teacher-code-input').value.trim();
-        const prefect = document.getElementById('prefect-code-input').value.trim();
-        await setDoc(doc(db,"config","registrationCodes"), { teacher, prefect }, { merge:true });
-        await showAlert("가입 코드가 성공적으로 저장되었습니다.");
-        document.getElementById('code-manager-modal').classList.add('hidden');
-      }catch(err){
-        console.error("코드 저장 오류:", err);
-        await showAlert("코드 저장 중 오류가 발생했습니다.");
-      }finally{
-        toggleLoading(btn, false);
-      }
-    });
-
-    /* ----- 월별 통계 (관리자) ----- */
-    const statsBtn = document.getElementById('show-stats-btn');
-    statsBtn.addEventListener('click', ()=>{
-      currentAction = 'viewStats';
-      classSelectorTitle.textContent = '통계를 볼 학급 선택';
-      createClassSelectors('class-selector-container');
-      classSelectorModal.classList.remove('hidden');
-    });
-
-    async function showMonthlyStats(grade, studentClass){
-      const statsModal = document.getElementById('stats-modal');
-      const statsTitle = document.getElementById('stats-title');
-      const statsContent = document.getElementById('stats-content');
-
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth(); // 이번 달
-      statsTitle.textContent = `${year}년 ${month+1}월 통계 (${grade}학년 ${studentClass}반)`;
-      statsContent.innerHTML = `<div class="flex justify-center p-4"><div class="loader"></div></div>`;
-      statsModal.classList.remove('hidden');
-
-      const start = new Date(year, month, 1);
-      const end = new Date(year, month+1, 0, 23, 59, 59);
-      const classPrefix = grade + studentClass;
-
-      try{
-        // ⚠️ Firestore 제약: 서로 다른 필드의 범위 조건 동시 사용 불가
-        // → timestamp 범위만 쿼리하고, 학급(prefix)은 클라이언트에서 필터링
-        const q1 = query(
-          collection(db,"violations"),
-          where("timestamp", ">=", start),
-          where("timestamp", "<=", end)
-        );
-        const qs = await getDocs(q1);
-        const filtered = qs.docs
-          .map(d=>d.data())
-          .filter(v => typeof v.studentId === 'string' && v.studentId.startsWith(classPrefix));
-
-        if (filtered.length === 0){
-          statsContent.innerHTML = `<p class="text-center text-gray-500">이번 달 위반 기록이 없습니다.</p>`;
-          return;
-        }
-
-        // 학생별 월간/총 합산
-        const ids = [...new Set(filtered.map(v=>v.studentId))];
-        // 총 위반 수 (N+1 쿼리; 현재 규모 기준 허용)
-        const totalCounts = {};
-        const promises = ids.map(id=> getDocs(query(collection(db,"violations"), where("studentId","==", id))));
-        const all = await Promise.all(promises);
-        all.forEach((snap,i)=> totalCounts[ids[i]] = snap.size);
-
-        const nameById = {};
-        filtered.forEach(v => { nameById[v.studentId] = v.studentName; });
-
-        const monthlyCounts = {};
-        filtered.forEach(v => { monthlyCounts[v.studentId] = (monthlyCounts[v.studentId]||0)+1; });
-
-        const rows = ids.map(id => ({
-          학번: id,
-          이름: nameById[id] || '',
-          월간위반: monthlyCounts[id],
-          총위반: totalCounts[id] || monthlyCounts[id]
-        })).sort((a,b)=> b.월간위반 - a.월간위반);
-
-        statsContent.innerHTML = `
-          <table class="w-full text-sm text-left text-gray-500">
-            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-              <tr><th class="px-4 py-2">학번</th><th class="px-4 py-2">이름</th><th class="px-4 py-2 text-center">월간 위반</th><th class="px-4 py-2 text-center">총 위반</th></tr>
-            </thead>
-            <tbody>
-              ${rows.map(s=>`
-                <tr class="border-b">
-                  <td class="px-4 py-2">${s.학번}</td>
-                  <td class="px-4 py-2">${s.이름}</td>
-                  <td class="px-4 py-2 text-center">${s.월간위반}</td>
-                  <td class="px-4 py-2 text-center">${s.총위반}</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>`;
-      }catch(err){
-        console.error("월별 통계 조회 오류:", err);
-        statsContent.innerHTML = `<p class="text-center text-red-500">통계 조회 중 오류가 발생했습니다.</p>`;
-      }
-    }
-    document.getElementById('stats-close-btn').addEventListener('click', ()=> document.getElementById('stats-modal').classList.add('hidden'));
-
-    /* ----- 엑셀 내보내기 ----- */
-    async function exportToExcel(data, filename){
-      // 보안: 수식 주입 방지
-      const safe = data.map(row=>{
-        const out = {};
-        Object.keys(row).forEach(k=>{
-          out[k] = sanitizeExcel(row[k]);
-        });
-        return out;
-      });
-      const ws = XLSX.utils.json_to_sheet(safe);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-      XLSX.writeFile(wb, filename);
-      await showAlert("엑셀 파일이 다운로드되었습니다.");
-    }
-
-    document.getElementById('class-log-export-btn').addEventListener('click', async ()=>{
-      const title = document.getElementById('class-log-title').textContent; // 예: "1학년 2반 위반 기록"
-      const grade = title.charAt(0);
-      const studentClass = title.split(' ')[1].replace('반','');
-      const classPrefix = grade + studentClass;
-
-      const q1 = query(collection(db,"violations"),
-        where("studentId", ">=", classPrefix + "00"),
-        where("studentId", "<=", classPrefix + "99"));
-      const qs = await getDocs(q1);
-      const violations = qs.docs.map(d=>({ id:d.id, ...d.data() }));
-      if (!violations.length) return showAlert("내보낼 데이터가 없습니다.");
-
-      const studentIds = [...new Set(violations.map(v=>v.studentId))];
-      const totalCounts = {};
-      const snaps = await Promise.all(studentIds.map(id=> getDocs(query(collection(db,"violations"), where("studentId","==", id)))));
-      snaps.forEach((snap, i)=> totalCounts[studentIds[i]] = snap.size);
-
-      const exportData = violations
-        .sort((a,b)=> (a.timestamp?.toMillis?.()||new Date(a.timestamp).getTime()) < (b.timestamp?.toMillis?.()||new Date(b.timestamp).getTime()) ? 1 : -1)
-        .map(v=>({
-          "학년": v.studentId?.charAt(0) || '',
-          "반": v.studentId?.charAt(1) || '',
-          "학번": v.studentId,
-          "이름": v.studentName,
-          "위반일": formatDateKST(v.timestamp),
-          "위반내역": v.details,
-          "총 위반횟수": totalCounts[v.studentId] || ''
-        }));
-
-      exportToExcel(exportData, `${grade}학년${studentClass}반_위반기록.xlsx`);
-    });
-
-    document.getElementById('stats-export-btn').addEventListener('click', async ()=>{
-      const title = document.getElementById('stats-title').textContent;
-      const table = document.getElementById('stats-content').querySelector('table');
-      if (!table) return showAlert("내보낼 데이터가 없습니다.");
-      const ws = XLSX.utils.table_to_sheet(table);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "월별 통계");
-      XLSX.writeFile(wb, `${title}.xlsx`);
-    });
-
-    /* ----- 기타 버튼 ----- */
-    document.getElementById('class-log-close-btn').addEventListener('click', ()=> document.getElementById('class-log-modal').classList.add('hidden'));
-  </script>
+    </script>
 </body>
 </html>
